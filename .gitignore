@@ -1,0 +1,24 @@
+# Xcode
+*.xcuserstate
+*.xcbkptlist
+xcuserdata/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Snapshot test failures (written next to the reference images)
+Tests/GeneralKeyboardTests/Snapshots/_failures/
+
+# Emoji generator input (downloaded, not checked in)
+scripts/emoji-test.txt
+
+# macOS / Python
+.DS_Store
+__pycache__/

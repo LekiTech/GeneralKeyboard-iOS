@@ -1,0 +1,57 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Show «авар» on the space bar" : {
+      "comment" : "Settings subtitle under «Гьоркьоб бакӀалда «авар»»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show «авар» on the space bar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывать «авар» на пробеле"
+          }
+        }
+      }
+    },
+    "four rows — digraphs on top" : {
+      "comment" : "Settings subtitle under «4 мухъ»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "four rows — digraphs on top"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "четыре ряда — диграфы сверху"
+          }
+        }
+      }
+    },
+    "three letter rows" : {
+      "comment" : "Settings subtitle under «3 мухъ»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "three letter rows"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "три ряда букв"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.1"
+}

@@ -1,0 +1,329 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Cursor control with the space bar" : {
+      "comment" : "Settings subtitle under «Гьоркьоб бакӀалъул курсор»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cursor control with the space bar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Управление курсором пробелом"
+          }
+        }
+      }
+    },
+    "Dark theme" : {
+      "comment" : "Theme option subtitle",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark theme"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тёмная тема"
+          }
+        }
+      }
+    },
+    "Double space types a period" : {
+      "comment" : "Settings subtitle under «КӀиго пробел — тӀанкӀ»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Double space types a period"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Двойной пробел ставит точку"
+          }
+        }
+      }
+    },
+    "Light theme" : {
+      "comment" : "Theme option subtitle",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light theme"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Светлая тема"
+          }
+        }
+      }
+    },
+    "Match the system" : {
+      "comment" : "Theme option subtitle: follow the host appearance",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Match the system"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как в системе"
+          }
+        }
+      }
+    },
+    "Next-word suggestion" : {
+      "comment" : "Settings subtitle under «Хадусеб рагӀиялъул малълъи»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next-word suggestion"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подсказка следующего слова"
+          }
+        }
+      }
+    },
+    "Space after accepting a suggestion" : {
+      "comment" : "Settings subtitle under «Малълъиялда хадуб пробел»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Space after accepting a suggestion"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пробел после выбора подсказки"
+          }
+        }
+      }
+    },
+    "Word suggestions" : {
+      "comment" : "Settings subtitle under «РагӀабазул малълъиял»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Word suggestions"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подсказки слов"
+          }
+        }
+      }
+    },
+    "after 1 use" : {
+      "comment" : "Learning speed explanation, appended after «1 нухалъ»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "after 1 use"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "после 1 использования"
+          }
+        }
+      }
+    },
+    "after 3 uses" : {
+      "comment" : "Learning speed explanation, appended after «3 нухалъ»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "after 3 uses"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "после 3 использований"
+          }
+        }
+      }
+    },
+    "after 5 uses" : {
+      "comment" : "Learning speed explanation, appended after «5 нухалъ»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "after 5 uses"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "после 5 использований"
+          }
+        }
+      }
+    },
+    "layout" : {
+      "comment" : "Section label explanation after «Раскладка»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "layout"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "раскладка"
+          }
+        }
+      }
+    },
+    "learning" : {
+      "comment" : "Section label explanation after «Лъазаби»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "learning"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "обучение"
+          }
+        }
+      }
+    },
+    "long delay" : {
+      "comment" : "Callout delay explanation, appended after «0,45 с»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "long delay"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "долгая задержка"
+          }
+        }
+      }
+    },
+    "long press" : {
+      "comment" : "Section label explanation after «БатӀиял хӀарпал»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "long press"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "долгое нажатие"
+          }
+        }
+      }
+    },
+    "normal delay" : {
+      "comment" : "Callout delay explanation, appended after «0,3 с»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "normal delay"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "обычная задержка"
+          }
+        }
+      }
+    },
+    "short delay" : {
+      "comment" : "Callout delay explanation, appended after «0,2 с»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "short delay"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "короткая задержка"
+          }
+        }
+      }
+    },
+    "suggestions" : {
+      "comment" : "Section label explanation after «Малълъиял»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "suggestions"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "подсказки"
+          }
+        }
+      }
+    },
+    "theme" : {
+      "comment" : "Section label explanation after «Тема»",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "theme"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "тема"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.1"
+}
