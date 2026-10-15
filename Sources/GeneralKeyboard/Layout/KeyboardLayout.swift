@@ -206,8 +206,8 @@ public enum KeyboardLayout {
     /// native within 1% and stroke weight within ~7% (an earlier on-device
     /// tuning used medium-ish weight 0.19 and a condensed width, which drew
     /// letters ~20% heavier and ~10% narrower than native).
-    static func keyLabelFont(for cap: KeyCap, label: String) -> Font {
-        .system(size: fontSize(for: cap, label: label))
+    static func keyLabelFont(for cap: KeyCap, label: String, scale: CGFloat = 1) -> Font {
+        .system(size: fontSize(for: cap, label: label) * scale)
     }
 
     /// The key preview card's letter: the key-label face at the size the
@@ -225,12 +225,14 @@ public enum KeyboardLayout {
     /// baseline to the native position.
     static let nativeBaselineBelowCenter: CGFloat = 6.5
 
-    static func labelBaselineShift(for cap: KeyCap, label: String) -> CGFloat {
+    /// `scale` is the size class's label scale (KeyboardGeometry): fonts
+    /// and the baseline offset scale together, as on the native keyboard.
+    static func labelBaselineShift(for cap: KeyCap, label: String, scale: CGFloat = 1) -> CGFloat {
         guard case .character = cap else { return 0 }
-        let font = UIFont.systemFont(ofSize: fontSize(for: cap, label: label))
+        let font = UIFont.systemFont(ofSize: fontSize(for: cap, label: label) * scale)
         // A centered line box puts the baseline (ascender + descender) / 2
         // below center (descender is negative).
         let centeredBaseline = (font.ascender + font.descender) / 2
-        return nativeBaselineBelowCenter - centeredBaseline
+        return nativeBaselineBelowCenter * scale - centeredBaseline
     }
 }

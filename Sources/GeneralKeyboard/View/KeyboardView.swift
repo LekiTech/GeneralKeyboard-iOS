@@ -9,31 +9,80 @@ import SwiftUI
 
 // MARK: - Dynamic colors matching native iOS keyboard
 
+/// Colors of the iOS 27 system keyboard, measured on the native Russian
+/// keyboard in light and dark (iPhone simulator, RGB on screen). No accent
+/// color anywhere: like native, every state is a shade of gray.
 private extension Color {
-    static let kbLetterKey = Color(UIColor(dynamicProvider: { t in
-        t.userInterfaceStyle == .dark
-            ? UIColor(red: 0.227, green: 0.227, blue: 0.235, alpha: 1)
-            : UIColor.white
+    /// Every key shares one fill, as on iOS 26+: letters, shift, delete,
+    /// 123, emoji, settings, globe, space and return. Light keys are opaque
+    /// white; dark keys are white at 17% over the backdrop (70,70,70 on the
+    /// usual 32,32,32), so the backdrop's tint shows through like native.
+    static let kbKey = Color(UIColor(dynamicProvider: { t in
+        t.userInterfaceStyle == .dark ? UIColor(white: 1, alpha: 0.17) : .white
     }))
-    /// Pressed key, measured on the iOS 27 keyboard: (224,224,225) light,
-    /// (106,106,107) dark.
-    static let kbLetterKeyPressed = Color(UIColor(dynamicProvider: { t in
+    /// Pressed key: (224,224,225) light; white at 33% dark (106 on the
+    /// backdrop).
+    static let kbKeyPressed = Color(UIColor(dynamicProvider: { t in
         t.userInterfaceStyle == .dark
-            ? UIColor(red: 0.416, green: 0.416, blue: 0.42, alpha: 1)
+            ? UIColor(white: 1, alpha: 0.33)
             : UIColor(red: 0.878, green: 0.878, blue: 0.882, alpha: 1)
     }))
-    /// The long-press callout strip keeps its own gray (its restyle is a
-    /// separate decision).
-    static let kbCalloutFill = Color(UIColor(dynamicProvider: { t in
+    /// Surfaces floating over other keys (key preview card, long-press
+    /// callout): the key color, opaque so the keys below never show through.
+    static let kbFloatingKey = Color(UIColor(dynamicProvider: { t in
         t.userInterfaceStyle == .dark
-            ? UIColor(red: 0.36, green: 0.36, blue: 0.37, alpha: 1)
-            : UIColor(red: 0.82, green: 0.84, blue: 0.87, alpha: 1)
+            ? UIColor(red: 0.275, green: 0.275, blue: 0.275, alpha: 1)
+            : .white
     }))
-    /// Suggestion bar separator: (210,212,217) light, (49,49,51) dark.
+    /// The selected option of the long-press callout: a gray rounded
+    /// highlight, (228,228,230) light, (92,92,95) dark.
+    static let kbCalloutSelection = Color(UIColor(dynamicProvider: { t in
+        t.userInterfaceStyle == .dark
+            ? UIColor(red: 0.361, green: 0.361, blue: 0.373, alpha: 1)
+            : UIColor(red: 0.894, green: 0.894, blue: 0.902, alpha: 1)
+    }))
+    /// Suggestion text: (52,53,60) light, (181,181,181) dark.
+    static let kbSuggestionText = Color(UIColor(dynamicProvider: { t in
+        t.userInterfaceStyle == .dark
+            ? UIColor(red: 0.710, green: 0.710, blue: 0.710, alpha: 1)
+            : UIColor(red: 0.204, green: 0.208, blue: 0.235, alpha: 1)
+    }))
+    /// Suggestion bar separator: (206,207,215) light, (49,49,51) dark.
     static let kbSuggestionSeparator = Color(UIColor(dynamicProvider: { t in
         t.userInterfaceStyle == .dark
             ? UIColor(red: 0.192, green: 0.192, blue: 0.2, alpha: 1)
-            : UIColor(red: 0.824, green: 0.831, blue: 0.851, alpha: 1)
+            : UIColor(red: 0.808, green: 0.812, blue: 0.843, alpha: 1)
+    }))
+    /// The small language label in the space bar's corner: (204,204,204)
+    /// light, (126,126,126) dark.
+    static let kbSpaceCornerLabel = Color(UIColor(dynamicProvider: { t in
+        t.userInterfaceStyle == .dark
+            ? UIColor(red: 0.494, green: 0.494, blue: 0.494, alpha: 1)
+            : UIColor(red: 0.8, green: 0.8, blue: 0.8, alpha: 1)
+    }))
+    /// Emoji category bar: the current category's icon (black light,
+    /// (160,160,162) dark) on a gray circle ((189,191,202) light, (58,58,59)
+    /// dark); the other icons (112,112,116) light, (98,98,98) dark; the
+    /// delete icon (42,42,44) light, (193,193,194) dark.
+    static let kbEmojiCategorySelected = Color(UIColor(dynamicProvider: { t in
+        t.userInterfaceStyle == .dark
+            ? UIColor(red: 0.627, green: 0.627, blue: 0.635, alpha: 1)
+            : .black
+    }))
+    static let kbEmojiCategoryCircle = Color(UIColor(dynamicProvider: { t in
+        t.userInterfaceStyle == .dark
+            ? UIColor(red: 0.227, green: 0.227, blue: 0.231, alpha: 1)
+            : UIColor(red: 0.741, green: 0.749, blue: 0.792, alpha: 1)
+    }))
+    static let kbEmojiCategory = Color(UIColor(dynamicProvider: { t in
+        t.userInterfaceStyle == .dark
+            ? UIColor(red: 0.384, green: 0.384, blue: 0.384, alpha: 1)
+            : UIColor(red: 0.439, green: 0.439, blue: 0.455, alpha: 1)
+    }))
+    static let kbEmojiBarDelete = Color(UIColor(dynamicProvider: { t in
+        t.userInterfaceStyle == .dark
+            ? UIColor(red: 0.757, green: 0.757, blue: 0.761, alpha: 1)
+            : UIColor(red: 0.165, green: 0.165, blue: 0.173, alpha: 1)
     }))
     /// The soft shade under a light key: native light keys darken the
     /// background just below them by ~5% and fade over ~8 pt, with nothing
@@ -43,6 +92,24 @@ private extension Color {
             ? .clear
             : UIColor(white: 0, alpha: 0.055)
     }))
+}
+
+extension UIColor {
+    /// Flat stand-in for the system keyboard backdrop, for surfaces that
+    /// must be opaque (a forced theme, the settings panel): (224,225,232)
+    /// light, (32,32,32) dark, as measured behind the native keyboard.
+    static let gkKeyboardBackdrop = UIColor { t in
+        t.userInterfaceStyle == .dark
+            ? UIColor(red: 0.125, green: 0.125, blue: 0.125, alpha: 1)
+            : UIColor(red: 0.878, green: 0.882, blue: 0.910, alpha: 1)
+    }
+    /// The opaque key color, for settings rows that sit on the backdrop
+    /// like keys: white light, (70,70,70) dark.
+    static let gkKeyFill = UIColor { t in
+        t.userInterfaceStyle == .dark
+            ? UIColor(red: 0.275, green: 0.275, blue: 0.275, alpha: 1)
+            : .white
+    }
 }
 
 // MARK: - Root view
@@ -129,45 +196,51 @@ struct KeyboardView: View {
 
     private static let strings = KeyboardDefinition.current.strings
 
-    /// Per-style vertical geometry; the view re-renders when the style
-    /// changes because `model` is observed.
-    private var metrics: KeyboardLayout.Metrics {
-        KeyboardLayout.metrics(for: model.layoutStyle)
+    /// Live geometry for the layout style and the device and orientation
+    /// the keyboard is shown in; the view re-renders when either changes
+    /// because `model` is observed.
+    private var geometry: KeyboardGeometry {
+        KeyboardLayout.geometry(for: model.layoutStyle, sizeClass: model.sizeClass)
     }
+
+    /// The keyboard's own width (not the screen's: in landscape the system
+    /// insets the keyboard from the screen edges).
+    @State private var containerWidth: CGFloat = 0
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             if model.page == .emoji {
                 emojiPage
             } else {
-                VStack(spacing: 8) {
+                VStack(spacing: geometry.barGap) {
                     suggestionBar
                     GeometryReader { geo in
-                        // Vertical budget: 36 bar + 8 gap + N×keyHeight +
-                        // (N-1)×rowSpacing = metrics.totalHeight - 1, with
-                        // every number from KeyboardLayout.metrics(for:) —
-                        // .threeRow keeps the original 250/43/11 untouched,
-                        // .fourRow keeps the SAME key size and pays for its
-                        // extra row in total height.
-                        VStack(spacing: metrics.rowSpacing) {
+                        // Vertical budget: bar + gap + N×keyHeight +
+                        // (N-1)×rowSpacing = geometry.totalHeight - 1, every
+                        // number from KeyboardLayout.geometry(for:sizeClass:);
+                        // a 4-row style keeps the same key size and pays for
+                        // its extra row in total height.
+                        VStack(spacing: geometry.rowSpacing) {
                             let allRows = model.rows(needsGlobe: model.needsGlobe)
                             ForEach(Array(allRows.enumerated()), id: \.offset) { i, row in
-                                rowView(row: row, totalWidth: geo.size.width - 12,
+                                rowView(row: row, totalWidth: geo.size.width - 2 * geometry.sideInset,
                                         rowIndex: i, totalRows: allRows.count)
                             }
                         }
-                        .padding(.horizontal, 6)
+                        .padding(.horizontal, geometry.sideInset)
                     }
                 }
             }
 
-            // Key preview card (only when no callout)
-            if !isShowingCallout, let cap = pressedCap, case .character = cap {
+            // Key preview card (only when no callout; iPad keyboards have none)
+            if geometry.showsKeyPreview, !isShowingCallout,
+               let cap = pressedCap, case .character = cap {
                 KeyPreviewCard(
                     label: KeyboardLayout.label(for: cap, shifted: model.isShifted,
                                                 capsLock: model.isCapsLock),
                     keyFrame: pressedFrame,
-                    containerWidth: UIScreen.main.bounds.width
+                    containerWidth: containerWidth,
+                    scale: geometry.keyHeight / 43
                 )
                 .allowsHitTesting(false)
             }
@@ -179,7 +252,8 @@ struct KeyboardView: View {
                     selectedIndex: calloutSelectedIndex,
                     keyFrame: calloutFrame,
                     isShifted: model.isShifted,
-                    isCapsLock: model.isCapsLock
+                    isCapsLock: model.isCapsLock,
+                    containerWidth: containerWidth
                 )
                 .allowsHitTesting(false)
             }
@@ -194,7 +268,12 @@ struct KeyboardView: View {
             }
         }
         .animation(.easeOut(duration: 0.28), value: model.showsSettings)
-        .frame(height: metrics.totalHeight, alignment: .top)
+        .frame(height: geometry.totalHeight, alignment: .top)
+        // Anchored to the bottom like the native keyboard: while the system
+        // resizes the frame after a layout style switch, the keys stay put
+        // instead of the grid being cut at both ends
+        .frame(maxHeight: .infinity, alignment: .bottom)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { containerWidth = $0 }
         .coordinateSpace(name: "keyboard")
         .ignoresSafeArea()
     }
@@ -209,7 +288,7 @@ struct KeyboardView: View {
                 suggestionCells
             }
         }
-        .frame(height: 36)
+        .frame(height: geometry.barHeight)
         .onChange(of: model.suggestions) { _, _ in
             pendingDeleteWord = nil
         }
@@ -246,7 +325,7 @@ struct KeyboardView: View {
                 .padding(.vertical, 5)
                 .background(
                     emphasized ? AnyShapeStyle(Color.red.opacity(0.12))
-                               : AnyShapeStyle(Color.kbLetterKey),
+                               : AnyShapeStyle(Color.kbKey),
                     in: Capsule())
         }
     }
@@ -283,7 +362,7 @@ struct KeyboardView: View {
                     Rectangle()
                         .fill(Color.kbSuggestionSeparator)
                         .frame(width: 1, height: 23)
-                        .position(x: (a.maxX + b.minX) / 2, y: 18)
+                        .position(x: (a.maxX + b.minX) / 2, y: geometry.barHeight / 2)
                 }
             }
             .allowsHitTesting(false)
@@ -327,7 +406,7 @@ struct KeyboardView: View {
                         }
                 )
         }
-        .frame(height: 36)
+        .frame(height: geometry.barHeight)
         .coordinateSpace(name: "suggestionBar")
     }
 
@@ -361,7 +440,7 @@ struct KeyboardView: View {
                 // fully contains the (already truncated) text
                 if pressedSuggestionIndex == index {
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.kbLetterKey)
+                        .fill(Color.kbKey)
                         .padding(.vertical, 4)
                 }
             }
@@ -397,7 +476,7 @@ struct KeyboardView: View {
 
         var columns: [EmojiColumn] = []
         for group in groups {
-            let rows = metrics.emojiRows
+            let rows = geometry.emojiRows
             let chunks = stride(from: 0, to: group.emojis.count, by: rows).map {
                 Array(group.emojis[$0..<min($0 + rows, group.emojis.count)])
             }
@@ -459,10 +538,8 @@ struct KeyboardView: View {
 
     /// Emoji grid closer to the native emoji keyboard (iOS 27: ~29 pt glyphs
     /// on a 45.7 pt column pitch, first glyph ~10 pt from the edge, an extra
-    /// ~14 pt between categories). Rows keep the style's cell height, so the
-    /// page height is unchanged.
-    static let emojiFontSize: CGFloat = 32
-    static let emojiCellWidth: CGFloat = 44
+    /// ~14 pt between categories). Cell height and row count come from the
+    /// geometry, so the page always fits the keyboard's height.
     static let emojiGridInset: CGFloat = 3
     static let emojiCategoryGap: CGFloat = 14
 
@@ -471,8 +548,8 @@ struct KeyboardView: View {
             ForEach(column.emojis, id: \.self) { emoji in
                 Button(action: { onEmojiInsert?(emoji) }) {
                     Text(emoji)
-                        .font(.system(size: Self.emojiFontSize))
-                        .frame(width: Self.emojiCellWidth, height: metrics.emojiCellHeight)
+                        .font(.system(size: geometry.emojiFontSize))
+                        .frame(width: geometry.emojiCellWidth, height: geometry.emojiCellHeight)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(EmojiKeyButtonStyle())
@@ -502,7 +579,7 @@ struct KeyboardView: View {
 
                 Image(systemName: "delete.backward")
                     .font(.system(size: 17))
-                    .foregroundColor(Color(UIColor.label))
+                    .foregroundColor(.kbEmojiBarDelete)
                     .frame(width: 44, height: 36)
             }
             .padding(.horizontal, 4)
@@ -529,13 +606,12 @@ struct KeyboardView: View {
     private func emojiCategoryIcon(id: Int, symbol: String) -> some View {
         Image(systemName: symbol)
             .font(.system(size: 15))
-            .foregroundColor(Color(emojiCurrentSection == id ? UIColor.label : UIColor.secondaryLabel))
+            .foregroundColor(emojiCurrentSection == id ? .kbEmojiCategorySelected : .kbEmojiCategory)
             .frame(maxWidth: .infinity)
             .frame(height: 36)
             .background(
                 Circle()
-                    .fill(emojiCurrentSection == id
-                          ? Color(UIColor.secondarySystemFill) : Color.clear)
+                    .fill(emojiCurrentSection == id ? Color.kbEmojiCategoryCircle : Color.clear)
                     .frame(width: 30, height: 30)
             )
     }
@@ -637,8 +713,7 @@ struct KeyboardView: View {
                 calloutFrame = frame
                 calloutOptions = options
                 let totalW = calloutOptionWidth * CGFloat(options.count)
-                let screenWidth = UIScreen.main.bounds.width
-                let bubbleX = min(max(frame.midX, totalW / 2 + 6), screenWidth - totalW / 2 - 6)
+                let bubbleX = min(max(frame.midX, totalW / 2 + 6), containerWidth - totalW / 2 - 6)
                 let leftX = bubbleX - totalW / 2
                 calloutBubbleLeftX = leftX
                 let initialLocal = frame.midX - leftX
@@ -660,15 +735,19 @@ struct KeyboardView: View {
             },
             onCursorMove: { steps in onCursorMove?(steps) },
             onCursorLineMove: { lines in onCursorLineMove?(lines) },
-            keyHeight: metrics.keyHeight,
-            rowSpacing: metrics.rowSpacing
+            spacing: geometry.keyGap,
+            keyHeight: geometry.keyHeight,
+            rowSpacing: geometry.rowSpacing,
+            rowLeadingX: geometry.sideInset,
+            cornerRadius: geometry.cornerRadius,
+            labelScale: geometry.labelScale
         )
     }
 }
 
 // MARK: - Scroll edge effect
 
-private extension View {
+extension View {
     /// iOS 26 draws a soft "scroll edge effect" (a blurred, tinted band)
     /// along a scroll view's edges when the system decides content may sit
     /// under a bar. Inside the keyboard extension it lands on the emoji
@@ -757,7 +836,7 @@ private struct MorphingWordText: View {
                 .minimumScaleFactor(0.85)
         }
         .font(.system(size: size))
-        .foregroundColor(Color(UIColor.label))
+        .foregroundColor(.kbSuggestionText)
         .onChange(of: word) { old, new in
             let morphs = !old.isEmpty && !new.isEmpty
                 && (new.hasPrefix(old) || old.hasPrefix(new))
@@ -788,7 +867,7 @@ private struct EmojiKeyButtonStyle: ButtonStyle {
         configuration.label
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(configuration.isPressed ? Color.kbLetterKeyPressed : Color.clear)
+                    .fill(configuration.isPressed ? Color.kbKeyPressed : Color.clear)
             )
     }
 }
@@ -826,16 +905,19 @@ private struct RowView: View {
     @State private var spaceLastX: CGFloat = 0
     @State private var spaceLastY: CGFloat = 0
 
-    private let spacing: CGFloat = 6
+    /// Horizontal gap between keys and the row's x-origin in keyboard
+    /// space (matches the rows' horizontal padding), from the geometry.
+    let spacing: CGFloat
     /// Style-dependent vertical geometry, injected from
-    /// `KeyboardLayout.metrics(for:)` by the parent. `rowSpacing` must
+    /// `KeyboardLayout.geometry(for:sizeClass:)` by the parent. `rowSpacing` must
     /// mirror the key-grid `VStack` spacing so the expanded hit zones
     /// tile the inter-row gaps exactly — both come from the same
-    /// metrics value, so they cannot drift.
+    /// geometry value, so they cannot drift.
     let keyHeight: CGFloat
     let rowSpacing: CGFloat
-    /// Row x-origin in keyboard space; matches `.padding(.horizontal, 6)` on the VStack.
-    private let rowLeadingX: CGFloat = 6
+    let rowLeadingX: CGFloat
+    let cornerRadius: CGFloat
+    let labelScale: CGFloat
 
     /// Per-key width in row units; the return key adapts to its label.
     private func keyWeight(_ cap: KeyCap) -> CGFloat {
@@ -871,7 +953,8 @@ private struct RowView: View {
             HStack(spacing: spacing) {
                 ForEach(Array(row.enumerated()), id: \.offset) { _, cap in
                     KeyButton(cap: cap, model: model, returnKeyType: model.returnKeyType,
-                              isPressed: activeCap == cap)
+                              isPressed: activeCap == cap, cornerRadius: cornerRadius,
+                              labelScale: labelScale)
                         .frame(width: unitWidth * keyWeight(cap), height: keyHeight)
                 }
             }
@@ -1138,6 +1221,7 @@ private struct CalloutBubble: View {
     let keyFrame: CGRect
     let isShifted: Bool
     let isCapsLock: Bool
+    let containerWidth: CGFloat
 
     private let optionWidth: CGFloat = 44
     private let bubbleHeight: CGFloat = 54
@@ -1147,7 +1231,7 @@ private struct CalloutBubble: View {
         // Center bubble over the key
         let bubbleX = min(
             max(keyFrame.midX, totalWidth / 2 + 6),
-            UIScreen.main.bounds.width - totalWidth / 2 - 6
+            containerWidth - totalWidth / 2 - 6
         )
         // Once the long-press interface is active the connection to the
         // key disappears: the options bubble floats clean, no neck. Its
@@ -1163,14 +1247,23 @@ private struct CalloutBubble: View {
                     : opt
                 Text(display)
                     .font(.system(size: 24))
-                    .foregroundColor(i == selectedIndex ? .white : Color(UIColor.label))
+                    .foregroundColor(Color(UIColor.label))
                     .frame(width: optionWidth, height: bubbleHeight)
-                    .background(i == selectedIndex ? Color.blue : Color.kbCalloutFill)
+                    .background {
+                        // iOS 26+: a key-colored card, the selected option
+                        // on a gray rounded highlight inside it
+                        if i == selectedIndex {
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .fill(Color.kbCalloutSelection)
+                                .padding(4)
+                        }
+                    }
             }
         }
-        .cornerRadius(10)
+        .background(Color.kbFloatingKey,
+                    in: RoundedRectangle(cornerRadius: 13, style: .continuous))
         .compositingGroup()
-        .shadow(color: .black.opacity(0.25), radius: 6, x: 0, y: 3)
+        .shadow(color: .black.opacity(0.18), radius: 6, x: 0, y: 2)
         .position(x: bubbleX, y: bubbleY)
     }
 }
@@ -1191,6 +1284,9 @@ struct KeyPreviewCard: View {
     let label: String
     let keyFrame: CGRect
     let containerWidth: CGFloat
+    /// Key height relative to the iPhone portrait key (43 pt): the card and
+    /// its letter shrink with smaller keys (iPhone landscape).
+    var scale: CGFloat = 1
 
     static let extraWidth: CGFloat = 24
     static let height: CGFloat = 64
@@ -1199,25 +1295,27 @@ struct KeyPreviewCard: View {
     static let letterSize: CGFloat = 36
 
     /// The card's frame in keyboard coordinates.
-    static func frame(keyFrame: CGRect, containerWidth: CGFloat) -> CGRect {
+    static func frame(keyFrame: CGRect, containerWidth: CGFloat, scale: CGFloat = 1) -> CGRect {
         let width = keyFrame.width + extraWidth
-        // Edge keys: the card slides inward so it never leaves the screen
+        // Edge keys: the card slides inward so it never leaves the keyboard
         let midX = min(max(keyFrame.midX, width / 2), containerWidth - width / 2)
         let bottom = keyFrame.minY - gapAboveKey
-        let h = max(min(height, bottom), 0)
+        let h = max(min((height * scale).rounded(), bottom), 0)
         return CGRect(x: midX - width / 2, y: bottom - h, width: width, height: h)
     }
 
     /// The letter shrinks with a top-row card that had to be shortened.
-    static func letterSize(cardHeight: CGFloat) -> CGFloat {
-        min(letterSize, letterSize * cardHeight / height + 8)
+    static func letterSize(cardHeight: CGFloat, scale: CGFloat = 1) -> CGFloat {
+        let full = letterSize * scale
+        return min(full, full * cardHeight / (height * scale) + 8)
     }
 
     var body: some View {
-        let card = Self.frame(keyFrame: keyFrame, containerWidth: containerWidth)
+        let card = Self.frame(keyFrame: keyFrame, containerWidth: containerWidth, scale: scale)
         Text(label)
             .font(KeyboardLayout.previewFont(label: label,
-                                             size: Self.letterSize(cardHeight: card.height)))
+                                             size: Self.letterSize(cardHeight: card.height,
+                                                                   scale: scale)))
             .lineLimit(1)
             .minimumScaleFactor(0.5)
             .foregroundColor(Color(UIColor.label))
@@ -1225,7 +1323,7 @@ struct KeyPreviewCard: View {
             .frame(width: card.width, height: card.height)
             .background(
                 RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
-                    .fill(Color.kbLetterKey)
+                    .fill(Color.kbFloatingKey)
                     .shadow(color: .black.opacity(0.18), radius: 3, x: 0, y: 1)
             )
             .position(x: card.midX, y: card.midY)
@@ -1240,6 +1338,10 @@ private struct KeyButton: View {
     @ObservedObject var model: KeyboardModel
     let returnKeyType: UIReturnKeyType
     var isPressed: Bool = false
+    var cornerRadius: CGFloat = 8
+    var labelScale: CGFloat = 1
+
+    private func size(_ points: CGFloat) -> CGFloat { points * labelScale }
 
     var body: some View {
         if case .spacer = cap {
@@ -1254,7 +1356,7 @@ private struct KeyButton: View {
             .opacity(hidesLabel ? 0 : 1)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(backgroundColor)
-            .cornerRadius(8)
+            .cornerRadius(cornerRadius)
             // No hard drop shadow (native keys have none); light keys get the
             // native soft shade below them instead
             .background(alignment: .bottom) {
@@ -1281,8 +1383,8 @@ private struct KeyButton: View {
             ZStack(alignment: .bottomTrailing) {
                 Color.clear
                 Text(verbatim: KeyboardDefinition.current.keys.spaceCornerLabel)
-                    .font(.system(size: 10))
-                    .foregroundColor(Color(UIColor.systemGray2))
+                    .font(.system(size: size(10)))
+                    .foregroundColor(.kbSpaceCornerLabel)
                     .padding(.trailing, 6)
                     .padding(.bottom, 4)
                     // Hidden while the keyboard name flashes, or permanently
@@ -1291,7 +1393,7 @@ private struct KeyButton: View {
                 if model.showsKeyboardName {
                     // Keyboard name shown centered right after the keyboard appears
                     Text(verbatim: KeyboardDefinition.current.keys.keyboardName)
-                        .font(.system(size: 16))
+                        .font(.system(size: size(16)))
                         .foregroundColor(Color(UIColor.label))
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                         .transition(.opacity)
@@ -1305,13 +1407,13 @@ private struct KeyButton: View {
                 // every other key icon so it matches the native look —
                 // a color emoji would not.
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 18))
+                    .font(.system(size: size(18)))
                     .foregroundColor(Color(UIColor.label))
             } else {
                 let text = KeyboardLayout.returnLabel(for: returnKeyType)
                 if text.isEmpty {
                     Image(systemName: "return")
-                        .font(.system(size: 18))
+                        .font(.system(size: size(18)))
                         .foregroundColor(Color(UIColor.label))
                 } else {
                     // Single line, near-full size: long labels widen the
@@ -1319,7 +1421,7 @@ private struct KeyButton: View {
                     // shrinking the typography; the scale floor only
                     // guards the pathological cases.
                     Text(text)
-                        .font(.system(size: 14))
+                        .font(.system(size: size(14)))
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .foregroundColor(Color(UIColor.label))
@@ -1328,37 +1430,37 @@ private struct KeyButton: View {
 
         case .emoji:
             Image(systemName: "face.smiling")
-                .font(.system(size: 20))
+                .font(.system(size: size(20)))
                 .foregroundColor(Color(UIColor.label))
 
         case .settings:
             Image(systemName: "gearshape")
-                .font(.system(size: 20))
+                .font(.system(size: size(20)))
                 .foregroundColor(Color(UIColor.label))
 
         case .backspace:
             Image(systemName: "delete.backward")
-                .font(.system(size: 18))
+                .font(.system(size: size(18)))
                 .foregroundColor(Color(UIColor.label))
 
         case .shift:
             Image(systemName: model.isCapsLock ? "capslock.fill" : (model.isShifted ? "shift.fill" : "shift"))
-                .font(.system(size: 18))
+                .font(.system(size: size(18)))
                 .foregroundColor(Color(UIColor.label))
 
         default:
             let label = KeyboardLayout.label(for: cap, shifted: model.isShifted,
                                              capsLock: model.isCapsLock)
             Text(label)
-                .font(KeyboardLayout.keyLabelFont(for: cap, label: label))
+                .font(KeyboardLayout.keyLabelFont(for: cap, label: label, scale: labelScale))
                 .foregroundColor(Color(UIColor.label))
-                .offset(y: KeyboardLayout.labelBaselineShift(for: cap, label: label))
+                .offset(y: KeyboardLayout.labelBaselineShift(for: cap, label: label, scale: labelScale))
         }
     }
 
     private var backgroundColor: Color {
         // Spacebar is highlighted while it shows the keyboard name, like native
-        if case .space = cap, model.showsKeyboardName { return .kbLetterKeyPressed }
-        return isPressed ? .kbLetterKeyPressed : .kbLetterKey
+        if case .space = cap, model.showsKeyboardName { return .kbKeyPressed }
+        return isPressed ? .kbKeyPressed : .kbKey
     }
 }

@@ -24,6 +24,9 @@ final class KeyboardModel: ObservableObject {
     @Published var suggestions: [String] = []
     @Published var returnKeyType: UIReturnKeyType = .default
     @Published var needsGlobe: Bool = false
+    /// Device and orientation the keyboard is shown in; the host controller
+    /// updates it on layout, and the geometry follows.
+    @Published var sizeClass: KeyboardSizeClass = .phonePortrait
     /// Space long-press trackpad mode; key labels hide while the cursor is dragged.
     @Published var isSpaceCursorMode: Bool = false
     /// Keyboard name shown centered on the spacebar right after the keyboard appears.

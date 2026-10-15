@@ -78,7 +78,7 @@ open class GeneralKeyboardViewController: UIInputViewController {
                 // override — so a forced theme needs its own opaque
                 // background in the native backdrop colors. `.system`
                 // restores the transparent root (native blurred backdrop).
-                self.view.backgroundColor = theme == .system ? .clear : Self.keyboardBackground
+                self.view.backgroundColor = theme == .system ? .clear : .gkKeyboardBackdrop
             }
     }
 
@@ -88,14 +88,6 @@ open class GeneralKeyboardViewController: UIInputViewController {
         case .light:  return .light
         case .dark:   return .dark
         }
-    }
-
-    /// Flat stand-ins for the system keyboard backdrop, resolved through
-    /// the overridden trait (light ≈ #D1D3D9, dark ≈ #2B2B2B).
-    private static let keyboardBackground = UIColor { t in
-        t.userInterfaceStyle == .dark
-            ? UIColor(red: 0.169, green: 0.169, blue: 0.169, alpha: 1)
-            : UIColor(red: 0.820, green: 0.827, blue: 0.851, alpha: 1)
     }
 
     open override func viewWillAppear(_ animated: Bool) {
@@ -121,6 +113,8 @@ open class GeneralKeyboardViewController: UIInputViewController {
         super.viewWillLayoutSubviews()
         model.needsGlobe = needsInputModeSwitchKey
         model.returnKeyType = textDocumentProxy.returnKeyType ?? .default
+        let sizeClass = currentSizeClass()
+        if model.sizeClass != sizeClass { model.sizeClass = sizeClass }
     }
 
     open override func textDidChange(_ textInput: UITextInput?) {
@@ -142,6 +136,10 @@ open class GeneralKeyboardViewController: UIInputViewController {
         hc.view.backgroundColor = .clear
         hc.view.clipsToBounds = false   // allow key preview bubble to appear above keyboard
         hc.view.insetsLayoutMarginsFromSafeArea = false
+        // The keyboard draws edge to edge inside the frame the system gives
+        // it; safe areas (landscape side insets, the home indicator) are
+        // already outside that frame.
+        hc.safeAreaRegions = []
         view.clipsToBounds = false
 
         NSLayoutConstraint.activate([
@@ -151,32 +149,43 @@ open class GeneralKeyboardViewController: UIInputViewController {
             hc.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
-        // Height follows the layout style: the 3-row grid keeps the
-        // original 250, the 4-row grid grows so its extra digraph row
-        // never compresses the familiar keys. @Published emits the
-        // persisted style on subscription, so the saved choice applies
-        // right here on open.
+        // Height follows the layout style and the size class (device and
+        // orientation): a 4-row grid is one row taller than a 3-row grid in
+        // every size class. @Published emits the persisted style on
+        // subscription, so the saved choice applies right here on open.
         let h = view.heightAnchor.constraint(
-            equalToConstant: KeyboardLayout.metrics(for: model.layoutStyle).totalHeight)
+            equalToConstant: KeyboardLayout.geometry(for: model.layoutStyle,
+                                                     sizeClass: model.sizeClass).totalHeight)
         h.priority = UILayoutPriority(999)
         h.isActive = true
         heightConstraint = h
-        layoutStyleCancellable = model.$layoutStyle
-            .removeDuplicates()
-            .sink { [weak self] style in
-                self?.heightConstraint?.constant =
-                    KeyboardLayout.metrics(for: style).totalHeight
+        // Size the input view by its own constraints (UIInputView's
+        // self-sizing mode), so the height below is what the system shows.
+        inputView?.allowsSelfSizing = true
+        layoutStyleCancellable = model.$layoutStyle.combineLatest(model.$sizeClass)
+            .sink { [weak self] style, sizeClass in
+                self?.applyHeight(KeyboardLayout.geometry(for: style, sizeClass: sizeClass).totalHeight)
             }
     }
 
-    open override func viewSafeAreaInsetsDidChange() {
-        super.viewSafeAreaInsetsDidChange()
-        additionalSafeAreaInsets = UIEdgeInsets(
-            top: -view.safeAreaInsets.top,
-            left: -view.safeAreaInsets.left,
-            bottom: -view.safeAreaInsets.bottom,
-            right: -view.safeAreaInsets.right
-        )
+    /// Moves the keyboard to a new height while it is on screen (layout
+    /// style switch, rotation). Changing the constant alone left the frame
+    /// the system measured on open, so a 4-row grid rendered inside the
+    /// 3-row height, clipped at the top and bottom; the layout pass makes
+    /// the system re-read the height immediately.
+    private func applyHeight(_ height: CGFloat) {
+        guard let heightConstraint, heightConstraint.constant != height else { return }
+        heightConstraint.constant = height
+        view.setNeedsLayout()
+    }
+
+    /// Device and orientation, from the traits and the screen the keyboard
+    /// is on (orientation decides iPad portrait or landscape).
+    private func currentSizeClass() -> KeyboardSizeClass {
+        let screen = view.window?.windowScene?.screen.bounds.size
+            ?? view.window?.bounds.size
+            ?? view.bounds.size
+        return KeyboardSizeClass.current(traits: traitCollection, screenSize: screen)
     }
 
     private func makeKeyboardView() -> KeyboardView {

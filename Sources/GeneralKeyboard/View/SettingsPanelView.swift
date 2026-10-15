@@ -11,34 +11,18 @@
 
 import SwiftUI
 
-// MARK: - Panel palette (from the design prototype, light/dark)
+// MARK: - Panel palette
 
+/// The panel lives inside the keyboard, so it wears the keyboard's own
+/// neutral colors: the backdrop behind key-colored groups, system
+/// separators and label colors. No accent color: a selection is a
+/// checkmark in the label color and switches keep the system look.
 private extension Color {
-    static let spAccent = Color(UIColor(dynamicProvider: { t in
-        t.userInterfaceStyle == .dark
-            ? UIColor(red: 0.545, green: 0.533, blue: 1.0, alpha: 1)      // #8b88ff
-            : UIColor(red: 0.357, green: 0.341, blue: 0.878, alpha: 1)    // #5b57e0
-    }))
-    static let spAccentTint = Color(UIColor(dynamicProvider: { t in
-        t.userInterfaceStyle == .dark
-            ? UIColor(red: 0.149, green: 0.145, blue: 0.255, alpha: 1)    // #262541
-            : UIColor(red: 0.925, green: 0.922, blue: 0.984, alpha: 1)    // #ecebfb
-    }))
-    static let spPanel = Color(UIColor(dynamicProvider: { t in
-        t.userInterfaceStyle == .dark
-            ? UIColor(red: 0.082, green: 0.082, blue: 0.090, alpha: 1)    // #151517
-            : UIColor(red: 0.957, green: 0.957, blue: 0.973, alpha: 1)    // #f4f4f8
-    }))
-    static let spRow = Color(UIColor(dynamicProvider: { t in
-        t.userInterfaceStyle == .dark
-            ? UIColor(red: 0.122, green: 0.122, blue: 0.141, alpha: 1)    // #1f1f24
-            : UIColor.white
-    }))
-    static let spSep = Color(UIColor(dynamicProvider: { t in
-        t.userInterfaceStyle == .dark
-            ? UIColor(red: 0.173, green: 0.173, blue: 0.200, alpha: 1)    // #2c2c33
-            : UIColor(red: 0.918, green: 0.918, blue: 0.945, alpha: 1)    // #eaeaf1
-    }))
+    static let spPanel = Color(UIColor.gkKeyboardBackdrop)
+    static let spRow = Color(UIColor.gkKeyFill)
+    static let spSep = Color(UIColor.opaqueSeparator)
+    /// Icon tile in the style of the iOS Settings app's gray tiles.
+    static let spIconTile = Color(UIColor.systemGray)
 }
 
 // MARK: - Panel
@@ -86,7 +70,7 @@ struct SettingsPanelView: View {
         ZStack {
             VStack(spacing: 0) {
                 Capsule()
-                    .fill(Color.spSep)
+                    .fill(Color(UIColor.systemGray3))
                     .frame(width: 36, height: 5)
                     .padding(.top, 6)
 
@@ -105,6 +89,9 @@ struct SettingsPanelView: View {
                     .padding(.horizontal, 14)
                     .padding(.bottom, 14)
                 }
+                // Same iOS 26 scroll edge effect as the emoji grid: it veiled
+                // the first rows of every page under the header
+                .hidingScrollEdgeEffects()
             }
 
             if showsDeleteAllSheet { deleteAllSheet }
@@ -141,7 +128,7 @@ struct SettingsPanelView: View {
                     Text(verbatim: stack.count > 1 ? strings.back : strings.close)
                         .font(.system(size: 16, weight: .medium))
                 }
-                .foregroundColor(.spAccent)
+                .foregroundColor(Color(UIColor.label))
                 .padding(.vertical, 8)
                 .padding(.horizontal, 6)
                 .contentShape(Rectangle())
@@ -398,11 +385,8 @@ struct SettingsPanelView: View {
                     .font(.system(size: 28, weight: .heavy))
                     .foregroundColor(.white)
                     .frame(width: 56, height: 56)
-                    .background(
-                        LinearGradient(colors: [Color(red: 0.49, green: 0.478, blue: 1.0),
-                                                Color(red: 0.357, green: 0.341, blue: 0.878)],
-                                       startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(Color.spIconTile,
+                                in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 VStack(spacing: 2) {
                     Text(verbatim: strings.aboutTitle)
                         .font(.system(size: 17, weight: .semibold))
@@ -453,7 +437,7 @@ struct SettingsPanelView: View {
                 } label: {
                     Text(verbatim: strings.no)
                         .font(.system(size: 16))
-                        .foregroundColor(.spAccent)
+                        .foregroundColor(Color(UIColor.label))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                         .contentShape(Rectangle())
@@ -497,9 +481,9 @@ struct SettingsPanelView: View {
             HStack(spacing: 11) {
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.spAccent)
+                    .foregroundColor(.white)
                     .frame(width: 28, height: 28)
-                    .background(Color.spAccentTint, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .background(Color.spIconTile, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 Text(verbatim: title)
                     .font(.system(size: 15))
                     .foregroundColor(Color(UIColor.label))
@@ -541,7 +525,6 @@ struct SettingsPanelView: View {
             Spacer(minLength: 8)
             Toggle("", isOn: binding)
                 .labelsHidden()
-                .tint(.spAccent)
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 8)
@@ -562,8 +545,8 @@ struct SettingsPanelView: View {
             HStack(spacing: 11) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(verbatim: title)
-                        .font(.system(size: 15, weight: selected ? .medium : .regular))
-                        .foregroundColor(selected ? .spAccent : Color(UIColor.label))
+                        .font(.system(size: 15))
+                        .foregroundColor(Color(UIColor.label))
                     Text(verbatim: subtitle)
                         .font(.system(size: 12))
                         .foregroundColor(Color(UIColor.secondaryLabel))
@@ -572,7 +555,7 @@ struct SettingsPanelView: View {
                 if selected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.spAccent)
+                        .foregroundColor(Color(UIColor.label))
                 }
             }
             .padding(.horizontal, 13)
