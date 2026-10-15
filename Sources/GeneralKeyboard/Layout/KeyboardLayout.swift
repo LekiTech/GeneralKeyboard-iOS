@@ -207,6 +207,19 @@ public enum KeyboardLayout {
     private static let characterWeight: CGFloat = 0.19
     private static let characterWidth: CGFloat = -0.1
 
+    /// The key preview card's letter: the same tuned face as the key
+    /// labels at the size the card asks for (native: ~36 pt for upper- and
+    /// lowercase alike); digraphs step down like on the keys.
+    static func previewFont(label: String, size base: CGFloat) -> Font {
+        let size = label.count > 1 ? base * 0.8 : base
+        let descriptor = UIFont.systemFont(ofSize: size).fontDescriptor
+            .addingAttributes([.traits: [
+                UIFontDescriptor.TraitKey.weight: characterWeight,
+                UIFontDescriptor.TraitKey.width: characterWidth,
+            ]])
+        return Font(UIFont(descriptor: descriptor, size: size))
+    }
+
     static func keyLabelFont(for cap: KeyCap, label: String) -> Font {
         let size = fontSize(for: cap, label: label)
         guard case .character = cap else {

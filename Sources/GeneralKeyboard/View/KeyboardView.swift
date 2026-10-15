@@ -42,6 +42,10 @@ struct KeyboardView: View {
     // Key preview bubble state
     @State private var pressedCap: KeyCap? = nil
     @State private var pressedFrame: CGRect = .zero
+    @State private var pressedAt: CFTimeInterval = 0
+    /// Identifies the current press, so a deferred hide never removes the
+    /// preview of a newer press.
+    @State private var pressToken = 0
 
     // Suggestion bar press state
     @State private var pressedSuggestionIndex: Int? = nil
@@ -134,12 +138,13 @@ struct KeyboardView: View {
                 }
             }
 
-            // Key preview bubble (only when no callout)
+            // Key preview card (only when no callout)
             if !isShowingCallout, let cap = pressedCap, case .character = cap {
-                KeyPreviewBubble(
+                KeyPreviewCard(
                     label: KeyboardLayout.label(for: cap, shifted: model.isShifted,
                                                 capsLock: model.isCapsLock),
-                    frame: pressedFrame
+                    keyFrame: pressedFrame,
+                    containerWidth: UIScreen.main.bounds.width
                 )
                 .allowsHitTesting(false)
             }
@@ -396,6 +401,7 @@ struct KeyboardView: View {
                 .background(Color.white.opacity(0.001))
             }
             .scrollPosition(id: $emojiScrollTarget, anchor: .leading)
+            .hidingScrollEdgeEffects()
             .padding(.top, 4)
             .onChange(of: emojiScrollTarget) { _, newValue in
                 if let id = newValue, columns.indices.contains(id) {
@@ -551,6 +557,20 @@ struct KeyboardView: View {
 
     // MARK: - Key row
 
+    /// Like the native keyboard, a tap too short to reach the screen still
+    /// flashes its preview (native: ~40 ms for an instant tap); a longer
+    /// press hides it on release. Typing itself is never delayed.
+    static let minimumPressVisibility: CFTimeInterval = 0.06
+
+    private func hidePreview() {
+        let remaining = Self.minimumPressVisibility - (CACurrentMediaTime() - pressedAt)
+        guard remaining > 0 else { pressedCap = nil; return }
+        let token = pressToken
+        DispatchQueue.main.asyncAfter(deadline: .now() + remaining) {
+            if pressToken == token { pressedCap = nil }
+        }
+    }
+
     private func rowView(row: [KeyCap], totalWidth: CGFloat,
                          rowIndex: Int = 0, totalRows: Int = 1) -> some View {
         RowView(
@@ -558,10 +578,12 @@ struct KeyboardView: View {
             model: model,
             onKey: onKey,
             onPress: { cap, frame in
+                pressToken &+= 1
+                pressedAt = CACurrentMediaTime()
                 pressedCap = cap
                 pressedFrame = frame
             },
-            onRelease: { pressedCap = nil },
+            onRelease: { hidePreview() },
             onLongPress: { frame, options in
                 pressedCap = nil
                 calloutFrame = frame
@@ -580,8 +602,8 @@ struct KeyboardView: View {
                 let idx = Int(localX / calloutOptionWidth)
                 calloutSelectedIndex = max(0, min(calloutOptions.count - 1, idx))
             },
-            onLongRelease: {
-                if isShowingCallout {
+            onLongRelease: { commit in
+                if commit, isShowingCallout {
                     let selected = calloutOptions[calloutSelectedIndex]
                     onKey(.character(selected))
                 }
@@ -593,6 +615,24 @@ struct KeyboardView: View {
             keyHeight: metrics.keyHeight,
             rowSpacing: metrics.rowSpacing
         )
+    }
+}
+
+// MARK: - Scroll edge effect
+
+private extension View {
+    /// iOS 26 draws a soft "scroll edge effect" (a blurred, tinted band)
+    /// along a scroll view's edges when the system decides content may sit
+    /// under a bar. Inside the keyboard extension it lands on the emoji
+    /// grid's top edge and veils the whole first row; the grid has no bar
+    /// to separate from, so the effect is hidden. Earlier systems have no
+    /// such effect.
+    @ViewBuilder func hidingScrollEdgeEffects() -> some View {
+        if #available(iOS 26.0, *) {
+            self.scrollEdgeEffectHidden(true, for: .all)
+        } else {
+            self
+        }
     }
 }
 
@@ -719,7 +759,9 @@ private struct RowView: View {
     let onRelease: () -> Void
     let onLongPress: (CGRect, [String]) -> Void
     let onDragMoved: (CGPoint) -> Void
-    let onLongRelease: () -> Void
+    /// Ends a long press; `false` when the touch was cancelled by the
+    /// system (nothing is inserted).
+    let onLongRelease: (Bool) -> Void
     let onCursorMove: (Int) -> Void
     let onCursorLineMove: (Int) -> Void
 
@@ -729,6 +771,8 @@ private struct RowView: View {
     @State private var longPressTimer: DispatchWorkItem? = nil
     @State private var repeatTimer: Timer? = nil
     @State private var activeCap: KeyCap? = nil
+    @State private var pressStartedAt: CFTimeInterval = 0
+    @State private var pressToken = 0
     @State private var isSpaceCursorMode = false
     @State private var spaceCursorTimer: DispatchWorkItem? = nil
     @State private var spaceLastX: CGFloat = 0
@@ -791,16 +835,17 @@ private struct RowView: View {
                 }
             )
 
-            // Gesture layer: single transparent rect, expanded to cover vertical gaps.
-            // Color.clear does not receive touches in SwiftUI; use near-zero opacity instead.
+            // Touch layer: one rect over the whole row, expanded to cover the
+            // vertical gaps. UIKit, not a SwiftUI DragGesture: see KeyTouchSurface.
             Color.white.opacity(0.001)
                 .frame(height: zoneHeight)
                 .offset(y: -topExpand)
-                .gesture(
-                    DragGesture(minimumDistance: 0, coordinateSpace: .named("keyboard"))
-                        .onChanged { value in handleChanged(value: value) }
-                        .onEnded   { _     in handleEnded() }
-                )
+                .gesture(KeyTouchSurface(
+                    onBegan: { handleChanged(location: $0) },
+                    onMoved: { handleChanged(location: $0) },
+                    onEnded: { handleEnded() },
+                    onCancelled: { handleCancelled() }
+                ))
         }
         .frame(height: keyHeight)  // keep layout height at 43pt so VStack spacing is unchanged
     }
@@ -813,30 +858,32 @@ private struct RowView: View {
         return keyFrames.min(by: { abs($0.frame.midX - touchX) < abs($1.frame.midX - touchX) })
     }
 
-    private func handleChanged(value: DragGesture.Value) {
+    private func handleChanged(location: CGPoint) {
         guard !isPressed else {
             if isLongPressed {
-                onDragMoved(value.location)
+                onDragMoved(location)
             } else if isSpaceCursorMode {
-                spaceCursorDragged(to: value.location)
+                spaceCursorDragged(to: location)
             } else if activeCap == .space {
                 // Track the finger before cursor mode kicks in so activation
                 // starts from the current position without a jump
-                spaceLastX = value.location.x
-                spaceLastY = value.location.y
+                spaceLastX = location.x
+                spaceLastY = location.y
             }
             return
         }
         isPressed = true
-        guard let key = nearest(touchX: value.location.x) else { return }
+        guard let key = nearest(touchX: location.x) else { return }
         activeCap = key.cap
+        pressToken &+= 1
+        pressStartedAt = CACurrentMediaTime()
         onPress(key.cap, key.frame)
 
         // Long-press on space enters cursor mode: dragging moves the insertion
         // point (user-disableable in the settings panel)
         if case .space = key.cap, model.settings.spaceCursor {
-            spaceLastX = value.location.x
-            spaceLastY = value.location.y
+            spaceLastX = location.x
+            spaceLastY = location.y
             let work = DispatchWorkItem {
                 guard isPressed else { return }
                 isSpaceCursorMode = true
@@ -908,7 +955,7 @@ private struct RowView: View {
 
         if isLongPressed {
             isLongPressed = false
-            onLongRelease()
+            onLongRelease(true)
         } else if isSpaceCursorMode {
             // Cursor drag ends without inserting a space
             isSpaceCursorMode = false
@@ -918,7 +965,120 @@ private struct RowView: View {
             onRelease()
             if let cap = activeCap { onKey(cap) }
         }
+        clearHighlight()
+    }
+
+    /// The pressed key stays highlighted at least as long as its preview
+    /// (KeyboardView.minimumPressVisibility), unless a new press began.
+    private func clearHighlight() {
+        let remaining = KeyboardView.minimumPressVisibility - (CACurrentMediaTime() - pressStartedAt)
+        guard remaining > 0 else { activeCap = nil; return }
+        let token = pressToken
+        DispatchQueue.main.asyncAfter(deadline: .now() + remaining) {
+            if pressToken == token, !isPressed { activeCap = nil }
+        }
+    }
+
+    /// The system took the touch (for example a home-indicator swipe that
+    /// started on a key): undo the press without typing anything.
+    private func handleCancelled() {
+        longPressTimer?.cancel()
+        longPressTimer = nil
+        spaceCursorTimer?.cancel()
+        spaceCursorTimer = nil
+        repeatTimer?.invalidate()
+        repeatTimer = nil
+        isPressed = false
+        if isLongPressed {
+            isLongPressed = false
+            onLongRelease(false)
+        }
+        if isSpaceCursorMode {
+            isSpaceCursorMode = false
+            model.isSpaceCursorMode = false
+        }
+        onRelease()
         activeCap = nil
+    }
+}
+
+// MARK: - Key touch surface
+
+/// The touch layer of a key row. A SwiftUI `DragGesture(minimumDistance: 0)`
+/// reports the press about 85-100 ms after the finger lands, and a quick
+/// tap only when it lifts, so the pressed key and its preview showed late
+/// or never; a UIKit recognizer sees the same touch in a few milliseconds
+/// (measured in the keyboard extension, iOS 27). This one acts on raw
+/// touches instead of waiting to be recognized. It tracks one touch at a
+/// time, like the gesture it replaces, and reports points in the
+/// "keyboard" coordinate space.
+private struct KeyTouchSurface: UIGestureRecognizerRepresentable {
+    let onBegan: (CGPoint) -> Void
+    let onMoved: (CGPoint) -> Void
+    let onEnded: () -> Void
+    let onCancelled: () -> Void
+
+    func makeUIGestureRecognizer(context: Context) -> KeyTouchRecognizer {
+        KeyTouchRecognizer()
+    }
+
+    func updateUIGestureRecognizer(_ recognizer: KeyTouchRecognizer, context: Context) {
+        let converter = context.converter
+        recognizer.toKeyboard = { touch in
+            converter.convert(globalPoint: touch.location(in: nil), to: .named("keyboard"))
+        }
+        recognizer.onBegan = onBegan
+        recognizer.onMoved = onMoved
+        recognizer.onEnded = onEnded
+        recognizer.onCancelled = onCancelled
+    }
+}
+
+private final class KeyTouchRecognizer: UIGestureRecognizer {
+    var toKeyboard: (UITouch) -> CGPoint = { _ in .zero }
+    var onBegan: (CGPoint) -> Void = { _ in }
+    var onMoved: (CGPoint) -> Void = { _ in }
+    var onEnded: () -> Void = {}
+    var onCancelled: () -> Void = {}
+    private weak var tracked: UITouch?
+
+    init() {
+        super.init(target: nil, action: nil)
+        cancelsTouchesInView = false
+        delaysTouchesBegan = false
+        delaysTouchesEnded = false
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        guard tracked == nil, let touch = touches.first else { return }
+        tracked = touch
+        state = .began
+        onBegan(toKeyboard(touch))
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+        guard let touch = tracked, touches.contains(touch) else { return }
+        state = .changed
+        onMoved(toKeyboard(touch))
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
+        guard let touch = tracked, touches.contains(touch) else { return }
+        tracked = nil
+        state = .ended
+        onEnded()
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
+        guard let touch = tracked, touches.contains(touch) else { return }
+        tracked = nil
+        state = .cancelled
+        onCancelled()
+    }
+
+    override func reset() {
+        super.reset()
+        tracked = nil
     }
 }
 
@@ -967,82 +1127,60 @@ private struct CalloutBubble: View {
     }
 }
 
-// MARK: - Key preview bubble
+// MARK: - Key preview card
 
-private struct KeyPreviewBubble: View {
+/// The key preview of the iOS 26+ system keyboard: a rounded card in the
+/// key color floating just above the pressed key (no neck), showing the
+/// character large while the key itself stays visible in its pressed
+/// color. Geometry measured on the native Russian keyboard, iOS 27,
+/// iPhone 18 Pro: card = key width + 24 pt, 64 pt tall, 12 pt corners,
+/// 3.5 pt above the key, kept inside the screen; letter ~36 pt.
+///
+/// The system clips a keyboard extension at the top of its own view (the
+/// native card reaches into the app above; ours cannot), so a top-row
+/// card is as tall as the room above the key allows, letter scaled with it.
+struct KeyPreviewCard: View {
     let label: String
-    let frame: CGRect
+    let keyFrame: CGRect
+    let containerWidth: CGFloat
 
-    private let bubbleHeight: CGFloat = 54
-    private let neckAboveKey: CGFloat = 11   // gap between bubble bottom and key top
+    static let extraWidth: CGFloat = 24
+    static let height: CGFloat = 64
+    static let cornerRadius: CGFloat = 12
+    static let gapAboveKey: CGFloat = 3.5
+    static let letterSize: CGFloat = 36
+
+    /// The card's frame in keyboard coordinates.
+    static func frame(keyFrame: CGRect, containerWidth: CGFloat) -> CGRect {
+        let width = keyFrame.width + extraWidth
+        // Edge keys: the card slides inward so it never leaves the screen
+        let midX = min(max(keyFrame.midX, width / 2), containerWidth - width / 2)
+        let bottom = keyFrame.minY - gapAboveKey
+        let h = max(min(height, bottom), 0)
+        return CGRect(x: midX - width / 2, y: bottom - h, width: width, height: h)
+    }
+
+    /// The letter shrinks with a top-row card that had to be shortened.
+    static func letterSize(cardHeight: CGFloat) -> CGFloat {
+        min(letterSize, letterSize * cardHeight / height + 8)
+    }
 
     var body: some View {
-        let width = max(frame.width, 44)
-        // Neck runs the full key height so the shape replaces the key entirely;
-        // capped at frame.maxY so top-row popups stay inside the keyboard view
-        let totalHeight = min(bubbleHeight + neckAboveKey + frame.height, frame.maxY)
-        ZStack(alignment: .top) {
-            KeyPreviewShape(neckWidth: frame.width,
-                            bubbleHeight: bubbleHeight,
-                            cornerRadius: 8)
-                .fill(Color.kbLetterKeyPressed)
-                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-            Text(label)
-                .font(.system(size: 28))
-                .foregroundColor(Color(UIColor.label))
-                .frame(width: width, height: bubbleHeight)
-        }
-        .frame(width: width, height: totalHeight)
-        .position(
-            x: frame.midX,
-            // Bottom edge aligns with the key bottom
-            y: frame.maxY - totalHeight / 2
-        )
-    }
-}
-
-/// One continuous silhouette for the key preview: rounded bubble on top,
-/// sides curving inward to a neck matching the pressed key width, flat bottom.
-private struct KeyPreviewShape: Shape {
-    let neckWidth: CGFloat
-    let bubbleHeight: CGFloat
-    let cornerRadius: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        let inset = max((rect.width - neckWidth) / 2, 0)
-        let bubbleBottom = rect.minY + bubbleHeight
-        let curveStart = bubbleBottom - 6   // sides begin bending inward
-        let curveEnd   = bubbleBottom + 6   // neck sides become vertical
-
-        var p = Path()
-        p.move(to: CGPoint(x: rect.minX + cornerRadius, y: rect.minY))
-        // top edge + top-right corner
-        p.addLine(to: CGPoint(x: rect.maxX - cornerRadius, y: rect.minY))
-        p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + cornerRadius),
-                       control: CGPoint(x: rect.maxX, y: rect.minY))
-        // right side down, then S-curve inward to neck
-        p.addLine(to: CGPoint(x: rect.maxX, y: curveStart))
-        p.addCurve(to: CGPoint(x: rect.maxX - inset, y: curveEnd),
-                   control1: CGPoint(x: rect.maxX, y: bubbleBottom),
-                   control2: CGPoint(x: rect.maxX - inset, y: bubbleBottom))
-        // neck right side, rounded bottom corners (key-like), neck left side
-        p.addLine(to: CGPoint(x: rect.maxX - inset, y: rect.maxY - cornerRadius))
-        p.addQuadCurve(to: CGPoint(x: rect.maxX - inset - cornerRadius, y: rect.maxY),
-                       control: CGPoint(x: rect.maxX - inset, y: rect.maxY))
-        p.addLine(to: CGPoint(x: rect.minX + inset + cornerRadius, y: rect.maxY))
-        p.addQuadCurve(to: CGPoint(x: rect.minX + inset, y: rect.maxY - cornerRadius),
-                       control: CGPoint(x: rect.minX + inset, y: rect.maxY))
-        p.addLine(to: CGPoint(x: rect.minX + inset, y: curveEnd))
-        // S-curve outward back to bubble, left side up
-        p.addCurve(to: CGPoint(x: rect.minX, y: curveStart),
-                   control1: CGPoint(x: rect.minX + inset, y: bubbleBottom),
-                   control2: CGPoint(x: rect.minX, y: bubbleBottom))
-        p.addLine(to: CGPoint(x: rect.minX, y: rect.minY + cornerRadius))
-        // top-left corner
-        p.addQuadCurve(to: CGPoint(x: rect.minX + cornerRadius, y: rect.minY),
-                       control: CGPoint(x: rect.minX, y: rect.minY))
-        p.closeSubpath()
-        return p
+        let card = Self.frame(keyFrame: keyFrame, containerWidth: containerWidth)
+        Text(label)
+            .font(KeyboardLayout.previewFont(label: label,
+                                             size: Self.letterSize(cardHeight: card.height)))
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .foregroundColor(Color(UIColor.label))
+            .padding(.horizontal, 4)
+            .frame(width: card.width, height: card.height)
+            .background(
+                RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
+                    .fill(Color.kbLetterKey)
+                    .shadow(color: .black.opacity(0.18), radius: 3, x: 0, y: 1)
+            )
+            .position(x: card.midX, y: card.midY)
     }
 }
 
@@ -1065,8 +1203,6 @@ private struct KeyButton: View {
 
     private var keyCap: some View {
         keyLabel
-            // While a character key is pressed its bubble shows the letter,
-            // so the key's own label is hidden like on the native keyboard
             .opacity(hidesLabel ? 0 : 1)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(backgroundColor)
@@ -1076,10 +1212,10 @@ private struct KeyButton: View {
     }
 
     private var hidesLabel: Bool {
-        // Native blanks all key labels while space-drag cursor mode is active
-        if model.isSpaceCursorMode { return true }
-        if case .character = cap { return isPressed }
-        return false
+        // Native blanks all key labels while space-drag cursor mode is
+        // active. A pressed character key keeps its label: since iOS 26 the
+        // preview card floats above the key instead of replacing it.
+        model.isSpaceCursorMode
     }
 
     @ViewBuilder
