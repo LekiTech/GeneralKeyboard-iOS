@@ -8,8 +8,12 @@
 //  KeyboardDefinition can be proven to change nothing on screen.
 //
 //  References live in Tests/GeneralKeyboardTests/Snapshots/. They were
-//  recorded from the released Avar keyboard (AvarKeyboard-iOS de7467d) and
-//  must match with the reference definition, whose fixture data is Avar's.
+//  recorded from the released Avar keyboard (AvarKeyboard-iOS de7467d); the
+//  35 keyboard-page references were re-recorded once for the native visual
+//  refinement (typography, shadow, pressed color, separators, emoji size,
+//  docs/NATIVE_UI_AUDIT.md); the 16 settings-panel references are still the
+//  released ones. They render with the reference definition, whose fixture
+//  data is Avar's.
 //  To (re)record:
 //    TEST_RUNNER_RECORD_SNAPSHOTS=1 xcodebuild test -scheme GeneralKeyboard-Package \
 //      -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0' \

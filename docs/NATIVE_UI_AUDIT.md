@@ -47,13 +47,13 @@ Key geometry, measured on the letter rows (points):
 |---|---|---|---|---|
 | V1 | **Key preview style.** GK drew the iOS ≤18 bubble with a neck that replaced the key. iOS 26/27 shows a rounded card floating 3.3 pt above the key; the key stays visible in its pressed color. | Looked dated; hid the key while typing. | Card: key width + 24 pt, 64 pt tall, 12 pt continuous corners, key color, letter ~36 pt, slid inward at the screen edges. | **Fixed** (measured: GK card 53.3–54 × 64, same corner profile and gap as native). Top-row cards: see L1. |
 | V2 | **Keyboard is 13.6 pt taller** than native (container top 533.7 vs 547.3). The band above the first row is 59.6 pt vs 50.7, and 76 pt vs 71 below the bottom row. | Covers more of the app. | Lower Avar's `totalHeight` (product metrics) and move the rows up ~5 pt. | **Proposed** |
-| V3 | **Key shadow.** GK draws a 1.3 pt dark line under every key (RGB ~190); native iOS 27 keys have none. | The most visible "not native" cue. | Remove the shadow (or reduce to near-invisible). | **Proposed** |
-| V4 | **Letter label typography.** GK lowercase: 26.4 pt, weight 0.19; glyphs 8% taller, ~40% more ink, and 2 pt below center. Native centers the glyph exactly. | Letters look heavier and sit low. | ~24.5 pt, weight ~0, vertically centered; re-verify Avar digraphs. | **Proposed** |
+| V3 | **Key shadow.** GK drew a 1.3 pt hard dark line under every key (RGB ~158 light). Native: no line; light keys have a soft shade below them (background ~5% darker at the edge, fading over ~8 pt, nothing at the sides); dark keys have none. | The most visible "not native" cue. | Hard shadow removed; light keys get the native under-shade (a gradient, dark mode clear). | **Fixed** (light profile below a key matches native within 1–3 levels; dark: key edge straight to background, as native) |
+| V4 | **Letter label typography.** GK lowercase: 26.4 pt, weight 0.19, condensed width; glyphs 8% taller, ~40% more ink, 2 pt low. Native: system font, regular weight, standard width; one baseline for all letters ~28 pt below the key top (6.5 pt below center). | Letters looked heavier and sat low. | Plain system font; lowercase 24.8 pt (native 12.7 pt x-height), uppercase 22 pt (15.3 pt cap height); a baseline shift puts every character label on the native baseline. Digraphs keep their 0.8 step. | **Fixed** (lowercase: height and position identical, widths within 0.3 pt, ink +4–6%; uppercase: widths within 0.3 pt, position within 0.3 pt, ink ~10% lighter) |
 | V5 | **Bottom row.** Native: 123 (43.3), emoji (43.3), space (191.3), return (93). GK adds the settings key: 123 / gear / emoji 44.3 each, space 166.3, return 66.7. | Return is narrower than native. | Keep the settings key (product feature); consider return ≈ native width, taking the space from the space bar. | **Proposed** |
-| V6 | **Pressed key color.** GK RGB (209,214,222), bluish; native (224,224,225), neutral. | Slightly heavier press flash. | Use the native gray. | **Proposed** |
-| V7 | **Suggestion bar.** Native: three slots with thin separators, gray text; GK: no separators, black text. Text size the same (11.7 vs 12.3 pt ink). | Reads slightly differently. | Separators and native text color. | **Proposed** |
+| V6 | **Pressed key color.** GK RGB (209,214,222) light / (92,92,94) dark; native (224,224,225) / (106,106,107). | Heavier, bluish press flash. | Native grays. The long-press callout strip keeps its old gray until V8. | **Fixed** (measured (224,224,225) on the simulator) |
+| V7 | **Suggestion bar.** Native: thin separators between the three slots (1 pt × 23 pt, vertically centered, (210,212,217) light / (49,49,51) dark), hidden next to a highlighted slot; gray text. GK: no separators, black text. Text size the same (11.7 vs 12.3 pt ink). | Reads slightly differently. | Separators in the native size and colors, in the middle of each gap between GK's content-sized candidates, hidden next to a pressed candidate. Text color unchanged (not approved yet). | **Fixed** (separators); text color **Proposed** |
 | V8 | **Long-press callout.** Native iOS 26: key-colored card, selected option on a gray rounded highlight. GK: gray strip, selected option on solid blue. | Old iOS style. | Restyle to the card look (behavior unchanged). | **Proposed** |
-| V9 | **Emoji grid.** Native: glyphs ~29 pt, pitch 45.7 × 38.7, uppercase section headers that scroll with the content. GK: 23.5 pt glyphs, pitch 39 × 35, one fixed title. | Emoji look small. | Larger emoji within the current page height; optional inline headers. | **Proposed** |
+| V9 | **Emoji grid.** Native: glyphs ~29 pt, column pitch 45.7, row pitch 38.7, first glyph 10.3 pt from the edge, uppercase section headers that scroll with the content. GK: 23.5 pt glyphs, 39 × 35 pitch, one fixed title. | Emoji looked small. | Emoji 32 pt in 44 pt cells, 3 pt grid inset, 14 pt between categories; row pitch kept (page height unchanged). | **Fixed** (glyph 29.3 pt as native, column pitch 46.0, first glyph 9.3 pt; row pitch 35 vs 38.7 by the height constraint). Inline headers **Proposed** |
 
 ## 3. Interaction differences
 
@@ -81,7 +81,15 @@ physical-device touch timing (the simulator injects touches, a finger on
 glass may differ); text contexts beyond a plain text field (URL, email,
 number pads, search). Each needs a pass before the proposed items ship.
 
-## 6. Changed files
+## 6. Remaining after the visual refinement
+
+Keyboard height (V2) and the Return key width (V5) are deferred on purpose:
+Avar's rows have different key counts, so both need their own decision.
+Also open: callout style (V8), suggestion text color (V7), dark key fill
+(GK (58,58,60) vs native (69,69,69)), the suggestion and emoji bars'
+touch timing (I2).
+
+## 7. Changed files (bug-fix commit)
 
 - `Sources/GeneralKeyboard/View/KeyboardView.swift`: UIKit touch recognizer
   for key rows, cancellation handling, preview card, minimum press
@@ -89,3 +97,7 @@ number pads, search). Each needs a pass before the proposed items ship.
 - `Sources/GeneralKeyboard/Layout/KeyboardLayout.swift`: preview letter font.
 - `Tests/GeneralKeyboardTests/KeyPreviewTests.swift`: card geometry (middle,
   edge and top-row keys) and press visibility.
+
+Visual refinement commit: `KeyboardLayout.swift` (typography, baseline),
+`KeyboardView.swift` (colors, under-shade, separators, emoji grid), tests
+(font size, baseline), the 35 re-recorded keyboard-page snapshots.

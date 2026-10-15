@@ -15,10 +15,33 @@ private extension Color {
             ? UIColor(red: 0.227, green: 0.227, blue: 0.235, alpha: 1)
             : UIColor.white
     }))
+    /// Pressed key, measured on the iOS 27 keyboard: (224,224,225) light,
+    /// (106,106,107) dark.
     static let kbLetterKeyPressed = Color(UIColor(dynamicProvider: { t in
+        t.userInterfaceStyle == .dark
+            ? UIColor(red: 0.416, green: 0.416, blue: 0.42, alpha: 1)
+            : UIColor(red: 0.878, green: 0.878, blue: 0.882, alpha: 1)
+    }))
+    /// The long-press callout strip keeps its own gray (its restyle is a
+    /// separate decision).
+    static let kbCalloutFill = Color(UIColor(dynamicProvider: { t in
         t.userInterfaceStyle == .dark
             ? UIColor(red: 0.36, green: 0.36, blue: 0.37, alpha: 1)
             : UIColor(red: 0.82, green: 0.84, blue: 0.87, alpha: 1)
+    }))
+    /// Suggestion bar separator: (210,212,217) light, (49,49,51) dark.
+    static let kbSuggestionSeparator = Color(UIColor(dynamicProvider: { t in
+        t.userInterfaceStyle == .dark
+            ? UIColor(red: 0.192, green: 0.192, blue: 0.2, alpha: 1)
+            : UIColor(red: 0.824, green: 0.831, blue: 0.851, alpha: 1)
+    }))
+    /// The soft shade under a light key: native light keys darken the
+    /// background just below them by ~5% and fade over ~8 pt, with nothing
+    /// at the sides; dark keys have none.
+    static let kbKeyUnderShade = Color(UIColor(dynamicProvider: { t in
+        t.userInterfaceStyle == .dark
+            ? .clear
+            : UIColor(white: 0, alpha: 0.055)
     }))
 }
 
@@ -234,8 +257,8 @@ struct KeyboardView: View {
         return ZStack(alignment: .leading) {
             // Visual layer, no gestures: content-sized cells spread evenly
             // over the bar — every candidate takes the width it needs and
-            // the free space splits into the flexible gaps. No separators:
-            // the press capsule is the only affordance. Layout is NOT
+            // the free space splits into the flexible gaps, with a native
+            // separator in the middle of each gap. Layout is NOT
             // animated here on purpose: a prefix morph animates its own
             // size change (the withAnimation transaction inside
             // MorphingWordText propagates through layout), so evolving
@@ -248,6 +271,22 @@ struct KeyboardView: View {
                     Spacer(minLength: 6)
                 }
             }
+
+            // Separators between neighboring candidates, as on the native
+            // bar (iOS 27: 1 pt wide, 23 pt tall, vertically centered),
+            // hidden next to a pressed candidate
+            ForEach(0..<max(visible.count - 1, 0), id: \.self) { k in
+                let left = visible[k].offset, right = visible[k + 1].offset
+                let a = suggestionCellFrames[left], b = suggestionCellFrames[right]
+                if a.width > 0, b.width > 0,
+                   pressedSuggestionIndex != left, pressedSuggestionIndex != right {
+                    Rectangle()
+                        .fill(Color.kbSuggestionSeparator)
+                        .frame(width: 1, height: 23)
+                        .position(x: (a.maxX + b.minX) / 2, y: 18)
+                }
+            }
+            .allowsHitTesting(false)
 
             // Gesture layer: transparent rect covering the whole bar,
             // dispatching by x position to the nearest cell
@@ -395,7 +434,7 @@ struct KeyboardView: View {
                     }
                 }
                 .scrollTargetLayout()
-                .padding(.horizontal, 6)
+                .padding(.horizontal, Self.emojiGridInset)
                 // Transparent areas don't receive touches in SwiftUI; near-zero
                 // opacity makes the whole grid area scrollable, not just the glyphs
                 .background(Color.white.opacity(0.001))
@@ -418,20 +457,29 @@ struct KeyboardView: View {
         }
     }
 
+    /// Emoji grid closer to the native emoji keyboard (iOS 27: ~29 pt glyphs
+    /// on a 45.7 pt column pitch, first glyph ~10 pt from the edge, an extra
+    /// ~14 pt between categories). Rows keep the style's cell height, so the
+    /// page height is unchanged.
+    static let emojiFontSize: CGFloat = 32
+    static let emojiCellWidth: CGFloat = 44
+    static let emojiGridInset: CGFloat = 3
+    static let emojiCategoryGap: CGFloat = 14
+
     private func emojiColumn(_ column: EmojiColumn) -> some View {
         VStack(spacing: 2) {
             ForEach(column.emojis, id: \.self) { emoji in
                 Button(action: { onEmojiInsert?(emoji) }) {
                     Text(emoji)
-                        .font(.system(size: 26))
-                        .frame(width: 38, height: metrics.emojiCellHeight)
+                        .font(.system(size: Self.emojiFontSize))
+                        .frame(width: Self.emojiCellWidth, height: metrics.emojiCellHeight)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(EmojiKeyButtonStyle())
             }
         }
         // Visual gap between categories
-        .padding(.trailing, column.endsCategory ? 10 : 0)
+        .padding(.trailing, column.endsCategory ? Self.emojiCategoryGap : 0)
     }
 
     /// Bottom strip like native: АБВ + category icons + delete, no key backgrounds.
@@ -1117,7 +1165,7 @@ private struct CalloutBubble: View {
                     .font(.system(size: 24))
                     .foregroundColor(i == selectedIndex ? .white : Color(UIColor.label))
                     .frame(width: optionWidth, height: bubbleHeight)
-                    .background(i == selectedIndex ? Color.blue : Color.kbLetterKeyPressed)
+                    .background(i == selectedIndex ? Color.blue : Color.kbCalloutFill)
             }
         }
         .cornerRadius(10)
@@ -1207,7 +1255,14 @@ private struct KeyButton: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(backgroundColor)
             .cornerRadius(8)
-            .shadow(color: .black.opacity(0.3), radius: 0, x: 0, y: 1)
+            // No hard drop shadow (native keys have none); light keys get the
+            // native soft shade below them instead
+            .background(alignment: .bottom) {
+                LinearGradient(colors: [Color.kbKeyUnderShade, .clear],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: 8)
+                    .offset(y: 8)
+            }
             .allowsHitTesting(false)
     }
 
@@ -1297,6 +1352,7 @@ private struct KeyButton: View {
             Text(label)
                 .font(KeyboardLayout.keyLabelFont(for: cap, label: label))
                 .foregroundColor(Color(UIColor.label))
+                .offset(y: KeyboardLayout.labelBaselineShift(for: cap, label: label))
         }
     }
 

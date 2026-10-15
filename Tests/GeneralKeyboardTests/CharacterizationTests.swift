@@ -292,7 +292,8 @@ final class LanguageConstantsCharacterizationTests: GKTestCase {
             (.letters, 18), (.spacer(1), 0),
         ]
         for (cap, s) in sizes { XCTAssertEqual(KeyboardLayout.fontSize(for: cap), s, "\(cap)") }
-        XCTAssertEqual(KeyboardLayout.fontSize(for: .character("а"), label: "а"), 22 * 1.2,
+        // Lowercase 24.8 pt: the native x-height (visual refinement 2026-10)
+        XCTAssertEqual(KeyboardLayout.fontSize(for: .character("а"), label: "а"), 24.8,
                        accuracy: 0.0001)
         XCTAssertEqual(KeyboardLayout.fontSize(for: .character("а"), label: "А"), 22)
         XCTAssertEqual(KeyboardLayout.fontSize(for: .character("кӏ"), label: "кӏ"),

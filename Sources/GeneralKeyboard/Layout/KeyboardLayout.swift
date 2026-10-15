@@ -182,9 +182,10 @@ public enum KeyboardLayout {
 
     /// Size for the label actually rendered on the key. Lowercase letters
     /// are optically much smaller than caps at the same point size (x-height
-    /// vs cap height), so they get a 1.2× bump to match the native keyboard;
-    /// uppercase already matches native one-to-one. Digits and punctuation
-    /// have no case and keep the base size.
+    /// vs cap height), so they are set larger: 24.8 pt gives the native
+    /// keyboard's 12.7 pt x-height, while uppercase at 22 pt already has its
+    /// 15.3 pt cap height (measured on the iOS 27 Russian keyboard, iPhone
+    /// 18 Pro). Digits and punctuation have no case and keep the base size.
     static func fontSize(for cap: KeyCap, label: String) -> CGFloat {
         let base = fontSize(for: cap)
         // Digraph keys draw two glyphs in a single-key width; the lowercase
@@ -193,43 +194,43 @@ public enum KeyboardLayout {
             return base * 0.8
         }
         if case .character = cap, label != label.uppercased() {
-            return base * 1.2
+            return lowercaseCharacterSize
         }
         return base
     }
 
-    /// Character keys match the native iOS Russian keyboard, tuned by eye
-    /// on device: SF's continuous variable axes via a UIKit descriptor,
-    /// because SwiftUI's `Font.Weight` only exposes fixed steps and the
-    /// match sits between regular (0.0) and medium (0.23). Width is
-    /// slightly narrowed the same way (standard 0, condensed -0.2).
-    /// All other key labels keep the plain system font.
-    private static let characterWeight: CGFloat = 0.19
-    private static let characterWidth: CGFloat = -0.1
+    static let lowercaseCharacterSize: CGFloat = 24.8
 
-    /// The key preview card's letter: the same tuned face as the key
-    /// labels at the size the card asks for (native: ~36 pt for upper- and
-    /// lowercase alike); digraphs step down like on the keys.
-    static func previewFont(label: String, size base: CGFloat) -> Font {
-        let size = label.count > 1 ? base * 0.8 : base
-        let descriptor = UIFont.systemFont(ofSize: size).fontDescriptor
-            .addingAttributes([.traits: [
-                UIFontDescriptor.TraitKey.weight: characterWeight,
-                UIFontDescriptor.TraitKey.width: characterWidth,
-            ]])
-        return Font(UIFont(descriptor: descriptor, size: size))
+    /// Character keys use the plain system font, regular weight and
+    /// standard width, like the native keyboard: measured glyph widths match
+    /// native within 1% and stroke weight within ~7% (an earlier on-device
+    /// tuning used medium-ish weight 0.19 and a condensed width, which drew
+    /// letters ~20% heavier and ~10% narrower than native).
+    static func keyLabelFont(for cap: KeyCap, label: String) -> Font {
+        .system(size: fontSize(for: cap, label: label))
     }
 
-    static func keyLabelFont(for cap: KeyCap, label: String) -> Font {
-        let size = fontSize(for: cap, label: label)
-        guard case .character = cap else {
-            return .system(size: size)
-        }
-        let descriptor = UIFont.systemFont(ofSize: size).fontDescriptor
-            .addingAttributes([.traits: [
-                UIFontDescriptor.TraitKey.weight: characterWeight,
-                UIFontDescriptor.TraitKey.width: characterWidth,
-            ]])
-        return Font(UIFont(descriptor: descriptor, size: size))
+    /// The key preview card's letter: the key-label face at the size the
+    /// card asks for (native: ~36 pt for upper- and lowercase alike);
+    /// digraphs step down like on the keys.
+    static func previewFont(label: String, size base: CGFloat) -> Font {
+        .system(size: label.count > 1 ? base * 0.8 : base)
+    }
+
+    /// The native keyboard puts every character key's label on one
+    /// baseline, ~28 pt below the top of a 43 pt key (6.5 pt below its
+    /// center) — lowercase and uppercase alike, so lowercase letters sit
+    /// visually centered and capitals slightly above center. SwiftUI centers
+    /// the text's line box instead; this is the vertical shift that moves the
+    /// baseline to the native position.
+    static let nativeBaselineBelowCenter: CGFloat = 6.5
+
+    static func labelBaselineShift(for cap: KeyCap, label: String) -> CGFloat {
+        guard case .character = cap else { return 0 }
+        let font = UIFont.systemFont(ofSize: fontSize(for: cap, label: label))
+        // A centered line box puts the baseline (ascender + descender) / 2
+        // below center (descender is negative).
+        let centeredBaseline = (font.ascender + font.descender) / 2
+        return nativeBaselineBelowCenter - centeredBaseline
     }
 }

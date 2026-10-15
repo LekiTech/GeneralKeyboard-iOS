@@ -8,6 +8,7 @@
 //  stays on screen; a top-row card fits in the room above the key.
 //
 
+import UIKit
 import XCTest
 @testable import GeneralKeyboard
 
@@ -52,5 +53,30 @@ final class KeyPreviewTests: GKTestCase {
         // enough not to linger behind fast typing.
         XCTAssertGreaterThanOrEqual(KeyboardView.minimumPressVisibility, 0.04)
         XCTAssertLessThanOrEqual(KeyboardView.minimumPressVisibility, 0.1)
+    }
+}
+
+/// Key label typography measured on the native iOS 27 Russian keyboard:
+/// every character label sits on one baseline 6.5 pt below the key's
+/// center, upper- and lowercase alike.
+final class KeyLabelTypographyTests: GKTestCase {
+
+    private func baselineBelowCenter(_ cap: KeyCap, _ label: String) -> CGFloat {
+        let font = UIFont.systemFont(ofSize: KeyboardLayout.fontSize(for: cap, label: label))
+        return (font.ascender + font.descender) / 2
+            + KeyboardLayout.labelBaselineShift(for: cap, label: label)
+    }
+
+    func testCharacterLabelsShareTheNativeBaseline() {
+        for (cap, label) in [(KeyCap.character("а"), "а"), (.character("а"), "А"),
+                             (.character("кӏ"), "кӏ"), (.character("1"), "1")] {
+            XCTAssertEqual(baselineBelowCenter(cap, label), 6.5, accuracy: 0.001, label)
+        }
+    }
+
+    func testOtherKeysAreNotShifted() {
+        for cap in [KeyCap.shift, .backspace, .numbers, .space, .return] {
+            XCTAssertEqual(KeyboardLayout.labelBaselineShift(for: cap, label: "x"), 0)
+        }
     }
 }
