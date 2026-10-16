@@ -9,6 +9,13 @@ app and the keyboard extension. Neither contains engine code. The
 `Reference/` project in this repository is the smallest complete example;
 copy its shape.
 
+**Convention:** a LekiTech keyboard ships exactly these two targets. It has
+no iMessage sticker extension, no sticker packs and no messenger
+integrations (WhatsApp, Telegram, Instagram or others), so no
+`LSApplicationQueriesSchemes` and no third-party packages for them. Avar
+and Lezgi shipped sticker packs until 2026-10 and removed them; anything
+beyond the two targets needs its own approved feature.
+
 ## 1. Project
 
 - Containing app target, bundle ID `org.lekitech.<name>`. Links
@@ -22,6 +29,7 @@ copy its shape.
 - Swift 5 language mode. iOS 18 minimum.
 - The package is added as a Swift package dependency. Keep the bundle IDs
   of a released product unchanged forever.
+- No other targets, extensions or packages (see the convention above).
 
 ## 2. The definition
 
@@ -91,10 +99,13 @@ import GeneralKeyboardApp
 import GeneralKeyboardBridge
 
 KeyboardOnboardingView(title: "…", tagline: "…", keyboardName: "<display name>",
-                       features: [ … ]) {
-    // optional product cards, e.g. OnboardingCard { … }
-}
+                       features: [ … ])
 ```
+
+The view also takes a trailing closure, a slot between the install card
+and the feature cards. It stays empty by default; fill it (for example with
+an `OnboardingCard { … }`) only for a separately approved feature, never
+for sticker packs or messenger integrations.
 
 `keyboardName` must equal the extension's display name, because the
 install steps tell the user to turn it on by that name. Pick up
