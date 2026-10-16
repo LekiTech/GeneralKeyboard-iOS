@@ -18,7 +18,10 @@ enum ReferenceLayout {
         styles: [threeRow, fourRow],
         defaultStyle: .threeRow,
         showsStyleSelector: true,
-        persistenceKey: "layoutStyle"
+        persistenceKey: "layoutStyle",
+        // Every engine capability on: a long press on the gear opens the
+        // quick layout menu
+        quickSwitchOnSettingsLongPress: true
     )
 
     /// `.threeRow` is the original layout and its geometry is frozen.

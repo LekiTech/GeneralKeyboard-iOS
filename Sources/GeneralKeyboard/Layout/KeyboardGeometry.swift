@@ -34,7 +34,8 @@ public enum KeyboardSizeClass: Equatable, Sendable {
 }
 
 public struct KeyboardGeometry: Equatable, Sendable {
-    /// Suggestion bar height and the gap below it.
+    /// Space above the suggestion bar, the bar's height and the gap below it.
+    public var barTopInset: CGFloat = 0
     public var barHeight: CGFloat
     public var barGap: CGFloat
     public var keyHeight: CGFloat
@@ -58,10 +59,21 @@ public struct KeyboardGeometry: Equatable, Sendable {
     public var emojiCellWidth: CGFloat
     /// Rows including the bottom row.
     public var rows: Int
+    /// Empty space under the last row, below `bottomInset` (1 pt in the
+    /// weighted layout, none in the native grid).
+    public var bottomSlack: CGFloat = 1
+    /// The native cell grid (`KeyboardGridModel.nativeCells`): rows are
+    /// split into cells of the content width (keyboard width less
+    /// `cellOuterPad` per side), each key is its cell less `cellKeyInset`
+    /// per side, and every key edge is snapped to the pixel grid. When set,
+    /// `sideInset` is 0: the grid places keys in keyboard coordinates.
+    public var usesNativeCells = false
+    public var cellOuterPad: CGFloat = 0
+    public var cellKeyInset: CGFloat = 0
 
     public var totalHeight: CGFloat {
-        barHeight + barGap + CGFloat(rows) * keyHeight + CGFloat(rows - 1) * rowSpacing
-            + bottomInset + 1
+        barTopInset + barHeight + barGap + CGFloat(rows) * keyHeight
+            + CGFloat(rows - 1) * rowSpacing + bottomInset + bottomSlack
     }
 
     /// Fixed parts of the emoji page around the grid: title strip, grid top
@@ -127,7 +139,8 @@ public struct KeyboardGeometry: Equatable, Sendable {
     /// The geometry for a layout style in a size class. `metrics` are the
     /// definition's iPhone portrait metrics for the style.
     static func make(metrics: KeyboardLayout.Metrics, rows: Int,
-                     sizeClass: KeyboardSizeClass) -> KeyboardGeometry {
+                     sizeClass: KeyboardSizeClass,
+                     gridModel: KeyboardGridModel = .weighted) -> KeyboardGeometry {
         let n = native(sizeClass)
         var g = KeyboardGeometry(
             barHeight: n.barHeight, barGap: n.barGap,
@@ -140,6 +153,9 @@ public struct KeyboardGeometry: Equatable, Sendable {
             emojiFontSize: (32 * n.emojiScale).rounded(),
             emojiCellWidth: (44 * n.emojiScale).rounded(),
             rows: rows)
+        if sizeClass == .phonePortrait, gridModel == .nativeCells {
+            g.applyNativeCells()
+        }
         if sizeClass != .phonePortrait {
             // As many rows as fit at a comfortable cell height, sharing the
             // grid height evenly.
@@ -152,11 +168,52 @@ public struct KeyboardGeometry: Equatable, Sendable {
     }
 }
 
+extension KeyboardGeometry {
+    /// iPhone portrait in the native grid, from the measured native Russian
+    /// keyboard (iOS 27; model and measurements in docs/NATIVE_GRID.md):
+    /// - Horizontal: 3.5 pt content padding + 3 pt key inset = the native
+    ///   6.5 pt visible margin; keys 6 pt apart.
+    /// - Suggestion region 48 pt (9 above the bar, 32 bar, 7 gap). The
+    ///   native keyboard's row 1 starts 52.5 pt below its panel's top edge
+    ///   and its last row ends 71 pt above the screen bottom; an extension
+    ///   view starts 0.5 pt below the panel edge and ends 75 pt above the
+    ///   screen bottom, so its rows can sit no lower than 4 pt above the
+    ///   native ones. With 48 pt here and no slack under the last row the
+    ///   panel's top edge lands where the native one does; without the
+    ///   workaround below, the bar's centre (the separators, the suggestion
+    ///   text) is 25 pt below the view top, the native separators' centre
+    ///   25.5 pt below the panel edge.
+    /// Row pitch and key height stay the definition's metrics, so a 4-row
+    /// style is still exactly one row taller.
+    mutating func applyNativeCells() {
+        usesNativeCells = true
+        cellOuterPad = 3.5
+        cellKeyInset = 3
+        sideInset = 0
+        keyGap = 2 * cellKeyInset
+        barTopInset = 9 - Self.temporaryBarLift
+        barHeight = 32
+        barGap = 7 + Self.temporaryBarLift
+        bottomSlack = 0
+    }
+
+    /// TEMPORARY iOS workaround: how far the suggestion bar sits above its
+    /// native place (9 pt inset above it, 7 pt gap below). After a switch
+    /// from an Apple keyboard, iOS 26/27 draw 17 pt of their own panel above
+    /// a third-party keyboard (Apple Developer Forums thread 843093), which
+    /// leaves a wide empty band over the bar. The lift moves the bar up and
+    /// adds the same space under it, so the height and the rows stay put.
+    /// Set to 0 to restore the native placement. Measurements and when to
+    /// remove it: docs/NATIVE_GRID.md, "Known iOS Platform Workarounds".
+    static let temporaryBarLift: CGFloat = 8
+}
+
 extension KeyboardLayout {
     /// The live geometry of a style in a size class.
     static func geometry(for style: LayoutStyle, sizeClass: KeyboardSizeClass) -> KeyboardGeometry {
-        let spec = KeyboardDefinition.current.layout.spec(for: style)
+        let layout = KeyboardDefinition.current.layout
+        let spec = layout.spec(for: style)
         return KeyboardGeometry.make(metrics: spec.metrics, rows: spec.letterRows.count + 1,
-                                     sizeClass: sizeClass)
+                                     sizeClass: sizeClass, gridModel: layout.gridModel)
     }
 }

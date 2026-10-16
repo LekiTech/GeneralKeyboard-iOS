@@ -194,6 +194,14 @@ struct KeyboardView: View {
 
     private let calloutOptionWidth: CGFloat = 44
 
+    // Quick layout menu (long press on the gear key)
+    @State private var isShowingLayoutMenu = false
+    @State private var layoutMenuKeyFrame: CGRect = .zero
+    /// Rows in display order: the current style first.
+    @State private var layoutMenuStyles: [LayoutStyle] = []
+    /// Row under the finger; nil outside the menu (releasing changes nothing).
+    @State private var layoutMenuHighlight: Int? = nil
+
     private static let strings = KeyboardDefinition.current.strings
 
     /// Live geometry for the layout style and the device and orientation
@@ -222,14 +230,18 @@ struct KeyboardView: View {
                         // its extra row in total height.
                         VStack(spacing: geometry.rowSpacing) {
                             let allRows = model.rows(needsGlobe: model.needsGlobe)
+                            // Letter columns of the page: the native grid
+                            // gives a letter next to the space bar one cell
+                            let columns = allRows.dropLast().map(\.count).max() ?? 1
                             ForEach(Array(allRows.enumerated()), id: \.offset) { i, row in
                                 rowView(row: row, totalWidth: geo.size.width - 2 * geometry.sideInset,
-                                        rowIndex: i, totalRows: allRows.count)
+                                        rowIndex: i, totalRows: allRows.count, columns: columns)
                             }
                         }
                         .padding(.horizontal, geometry.sideInset)
                     }
                 }
+                .padding(.top, geometry.barTopInset)
             }
 
             // Key preview card (only when no callout; iPad keyboards have none)
@@ -256,6 +268,16 @@ struct KeyboardView: View {
                     containerWidth: containerWidth
                 )
                 .allowsHitTesting(false)
+            }
+
+            // Quick layout menu above the gear key (long press)
+            if isShowingLayoutMenu {
+                LayoutMenuBubble(styles: layoutMenuStyles,
+                                 highlightedIndex: layoutMenuHighlight,
+                                 currentStyle: model.layoutStyle,
+                                 keyFrame: layoutMenuKeyFrame,
+                                 containerWidth: containerWidth)
+                    .allowsHitTesting(false)
             }
 
             // In-keyboard settings panel (gear key), slides up over everything
@@ -696,7 +718,7 @@ struct KeyboardView: View {
     }
 
     private func rowView(row: [KeyCap], totalWidth: CGFloat,
-                         rowIndex: Int = 0, totalRows: Int = 1) -> some View {
+                         rowIndex: Int = 0, totalRows: Int = 1, columns: Int = 1) -> some View {
         RowView(
             row: row, totalWidth: totalWidth, rowIndex: rowIndex, totalRows: totalRows,
             model: model,
@@ -720,12 +742,41 @@ struct KeyboardView: View {
                 calloutSelectedIndex = max(0, min(options.count - 1, Int(initialLocal / calloutOptionWidth)))
                 isShowingCallout = true
             },
+            onSettingsLongPress: { frame in
+                pressedCap = nil
+                layoutMenuKeyFrame = frame
+                let offered = KeyboardDefinition.current.layout.styles.map(\.id)
+                layoutMenuStyles = [model.layoutStyle] + offered.filter { $0 != model.layoutStyle }
+                layoutMenuHighlight = nil
+                isShowingLayoutMenu = true
+            },
             onDragMoved: { point in
+                if isShowingLayoutMenu {
+                    // Track the row under the finger; outside the card, none
+                    let rect = LayoutMenuBubble.menuFrame(keyFrame: layoutMenuKeyFrame,
+                                                          rows: layoutMenuStyles.count,
+                                                          containerWidth: containerWidth)
+                    if rect.insetBy(dx: -8, dy: -4).contains(point) {
+                        let row = Int((point.y - rect.minY) / LayoutMenuBubble.rowHeight)
+                        layoutMenuHighlight = max(0, min(layoutMenuStyles.count - 1, row))
+                    } else {
+                        layoutMenuHighlight = nil
+                    }
+                    return
+                }
                 let localX = point.x - calloutBubbleLeftX
                 let idx = Int(localX / calloutOptionWidth)
                 calloutSelectedIndex = max(0, min(calloutOptions.count - 1, idx))
             },
             onLongRelease: { commit in
+                if isShowingLayoutMenu {
+                    if commit, let index = layoutMenuHighlight {
+                        model.setLayoutStyle(layoutMenuStyles[index])
+                    }
+                    isShowingLayoutMenu = false
+                    layoutMenuHighlight = nil
+                    return
+                }
                 if commit, isShowingCallout {
                     let selected = calloutOptions[calloutSelectedIndex]
                     onKey(.character(selected))
@@ -740,7 +791,11 @@ struct KeyboardView: View {
             rowSpacing: geometry.rowSpacing,
             rowLeadingX: geometry.sideInset,
             cornerRadius: geometry.cornerRadius,
-            labelScale: geometry.labelScale
+            labelScale: geometry.labelScale,
+            usesNativeCells: geometry.usesNativeCells,
+            cellOuterPad: geometry.cellOuterPad,
+            cellKeyInset: geometry.cellKeyInset,
+            columns: columns
         )
     }
 }
@@ -885,6 +940,9 @@ private struct RowView: View {
     let onPress: (KeyCap, CGRect) -> Void
     let onRelease: () -> Void
     let onLongPress: (CGRect, [String]) -> Void
+    /// Long press on the gear key, when the keyboard offers the quick
+    /// layout menu.
+    let onSettingsLongPress: (CGRect) -> Void
     let onDragMoved: (CGPoint) -> Void
     /// Ends a long press; `false` when the touch was cancelled by the
     /// system (nothing is inserted).
@@ -918,6 +976,14 @@ private struct RowView: View {
     let rowLeadingX: CGFloat
     let cornerRadius: CGFloat
     let labelScale: CGFloat
+    /// The native cell grid (KeyboardGridModel.nativeCells); see
+    /// `nativeSpans`. `columns` is the page's widest letter row.
+    let usesNativeCells: Bool
+    let cellOuterPad: CGFloat
+    let cellKeyInset: CGFloat
+    let columns: Int
+
+    @Environment(\.displayScale) private var displayScale
 
     /// Per-key width in row units; the return key adapts to its label.
     private func keyWeight(_ cap: KeyCap) -> CGFloat {
@@ -935,8 +1001,62 @@ private struct RowView: View {
     private var bottomExpand: CGFloat { rowIndex == totalRows - 1 ? 0 : rowSpacing / 2 }
     private var zoneHeight:   CGFloat { keyHeight + topExpand + bottomExpand }
 
+    /// Cell widths of this row in the native grid; they add up to the
+    /// content width `c`.
+    private func nativeCellWidths(content c: CGFloat) -> [CGFloat] {
+        let proportional: [CGFloat] = {
+            let total = row.map { keyWeight($0) }.reduce(0, +)
+            return row.map { c * keyWeight($0) / total }
+        }()
+        // Letter, number and symbol rows: cells in proportion to the key
+        // weights, so a row of letters is split into equal cells
+        guard row.contains(.space) else { return proportional }
+        // Bottom row, as on the native keyboard: every system key 1/8 of the
+        // content width, return 1/4, the space bar the rest. A letter next
+        // to the space bar takes one letter cell, paid for half by the space
+        // bar and half by return.
+        let letterCell = c / CGFloat(max(columns, 1))
+        let letterCount = row.filter { if case .character = $0 { return true }; return false }.count
+        let lettersWidth = letterCell * CGFloat(letterCount)
+        let systemCount = row.count - letterCount - row.filter { $0 == .space || $0 == .return }.count
+        let returnCell = c / 4 - lettersWidth / 2
+        let spaceCell = c - CGFloat(systemCount) * c / 8 - returnCell - lettersWidth
+        // A row too crowded for the native proportions keeps the weights
+        guard spaceCell >= 2 * letterCell else { return proportional }
+        return row.map { cap in
+            switch cap {
+            case .space: return spaceCell
+            case .return: return returnCell
+            case .character: return letterCell
+            default: return c / 8
+            }
+        }
+    }
+
+    /// Key spans in keyboard coordinates in the native grid: each key is its
+    /// cell less the key inset per side, every edge rounded to the pixel
+    /// grid on its own (so neighbouring keys keep an exact gap while their
+    /// widths differ by a pixel, as on the native keyboard).
+    private var nativeSpans: [(minX: CGFloat, maxX: CGFloat)] {
+        let c = totalWidth - 2 * cellOuterPad
+        let scale = max(displayScale, 1)
+        // Half a pixel rounds up, as natively; the hair keeps float drift in
+        // the running sum from turning an exact half pixel down
+        func snap(_ v: CGFloat) -> CGFloat { (v * scale + 1e-6).rounded(.toNearestOrAwayFromZero) / scale }
+        var x = rowLeadingX + cellOuterPad
+        return nativeCellWidths(content: c).map { w in
+            defer { x += w }
+            return (snap(x + cellKeyInset), snap(x + w - cellKeyInset))
+        }
+    }
+
     /// Visual key frames in keyboard coordinate space.
     private var keyFrames: [(cap: KeyCap, frame: CGRect)] {
+        if usesNativeCells {
+            return zip(row, nativeSpans).map { cap, span in
+                (cap, CGRect(x: span.minX, y: rowMinY, width: span.maxX - span.minX, height: keyHeight))
+            }
+        }
         var result: [(KeyCap, CGRect)] = []
         var x = rowLeadingX
         for cap in row {
@@ -950,12 +1070,30 @@ private struct RowView: View {
     var body: some View {
         ZStack(alignment: .leading) {
             // Visual layer
-            HStack(spacing: spacing) {
-                ForEach(Array(row.enumerated()), id: \.offset) { _, cap in
-                    KeyButton(cap: cap, model: model, returnKeyType: model.returnKeyType,
-                              isPressed: activeCap == cap, cornerRadius: cornerRadius,
-                              labelScale: labelScale)
-                        .frame(width: unitWidth * keyWeight(cap), height: keyHeight)
+            Group {
+                if usesNativeCells {
+                    // Explicit pixel-snapped frames (the row starts at the
+                    // keyboard's left edge, itself on the pixel grid)
+                    let spans = nativeSpans
+                    ZStack(alignment: .topLeading) {
+                        ForEach(Array(row.enumerated()), id: \.offset) { i, cap in
+                            KeyButton(cap: cap, model: model, returnKeyType: model.returnKeyType,
+                                      isPressed: activeCap == cap, cornerRadius: cornerRadius,
+                                      labelScale: labelScale, showsUnderShade: false)
+                                .frame(width: spans[i].maxX - spans[i].minX, height: keyHeight)
+                                .offset(x: spans[i].minX - rowLeadingX)
+                        }
+                    }
+                    .frame(width: totalWidth, height: keyHeight, alignment: .topLeading)
+                } else {
+                    HStack(spacing: spacing) {
+                        ForEach(Array(row.enumerated()), id: \.offset) { _, cap in
+                            KeyButton(cap: cap, model: model, returnKeyType: model.returnKeyType,
+                                      isPressed: activeCap == cap, cornerRadius: cornerRadius,
+                                      labelScale: labelScale)
+                                .frame(width: unitWidth * keyWeight(cap), height: keyHeight)
+                        }
+                    }
                 }
             }
             .background(
@@ -1056,7 +1194,22 @@ private struct RowView: View {
                                           execute: work)
         }
 
+        // Long press on the gear: the quick layout menu (a tap still opens
+        // the settings panel; it fires in handleEnded only when no long
+        // press was triggered)
+        if case .settings = key.cap, KeyboardDefinition.current.layout.showsQuickSwitch {
+            let frame = key.frame
+            let work = DispatchWorkItem {
+                isLongPressed = true
+                onSettingsLongPress(frame)
+            }
+            longPressTimer = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.quickSwitchDelay, execute: work)
+        }
     }
+
+    /// Hold time before the gear key opens the quick layout menu.
+    static let quickSwitchDelay: TimeInterval = 0.35
 
     /// 8pt of horizontal movement moves the cursor one character; 30pt vertically, one line.
     private func spaceCursorDragged(to point: CGPoint) {
@@ -1268,6 +1421,91 @@ private struct CalloutBubble: View {
     }
 }
 
+// MARK: - Quick layout menu
+
+/// The quick layout menu above the gear key: one row per style, the current
+/// style first and checked. The row under the finger is highlighted and
+/// releasing on it switches the style. Same iOS 26 look as the long-press
+/// callout: a key-colored card, the highlight a gray rounded rectangle.
+private struct LayoutMenuBubble: View {
+    let styles: [LayoutStyle]
+    let highlightedIndex: Int?
+    let currentStyle: LayoutStyle
+    let keyFrame: CGRect
+    let containerWidth: CGFloat
+
+    static let menuWidth: CGFloat = 196
+    static let rowHeight: CGFloat = 52
+    private static let gap: CGFloat = 8   // between the card and the key top
+
+    /// Card frame in keyboard coordinates, shared with the drag hit testing.
+    static func menuFrame(keyFrame: CGRect, rows: Int, containerWidth: CGFloat) -> CGRect {
+        let height = rowHeight * CGFloat(rows)
+        let x = min(max(keyFrame.minX, 4), containerWidth - menuWidth - 4)
+        let y = max(keyFrame.minY - gap - height, 2)
+        return CGRect(x: x, y: y, width: menuWidth, height: height)
+    }
+
+    var body: some View {
+        let rect = Self.menuFrame(keyFrame: keyFrame, rows: styles.count,
+                                  containerWidth: containerWidth)
+        let layout = KeyboardDefinition.current.layout
+        return VStack(spacing: 0) {
+            ForEach(Array(styles.enumerated()), id: \.element) { index, style in
+                let spec = layout.spec(for: style)
+                row(title: spec.quickSwitchTitle ?? spec.settingsTitle,
+                    subtitle: spec.quickSwitchSubtitle ?? spec.settingsSubtitle,
+                    isCurrent: style == currentStyle,
+                    isHighlighted: highlightedIndex == index)
+                    .overlay(alignment: .top) {
+                        if index > 0 {
+                            Rectangle()
+                                .fill(Color.kbSuggestionSeparator)
+                                .frame(height: 1)
+                                .padding(.horizontal, 12)
+                        }
+                    }
+            }
+        }
+        .frame(width: Self.menuWidth)
+        .background(Color.kbFloatingKey,
+                    in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .compositingGroup()
+        .shadow(color: .black.opacity(0.18), radius: 6, x: 0, y: 2)
+        .position(x: rect.midX, y: rect.midY)
+    }
+
+    private func row(title: String, subtitle: String,
+                     isCurrent: Bool, isHighlighted: Bool) -> some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(verbatim: title)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(Color(UIColor.label))
+                Text(verbatim: subtitle)
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(UIColor.secondaryLabel))
+            }
+            Spacer(minLength: 0)
+            if isCurrent {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(UIColor.label))
+            }
+        }
+        .lineLimit(1)
+        .padding(.horizontal, 13)
+        .frame(width: Self.menuWidth, height: Self.rowHeight)
+        .background {
+            if isHighlighted {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Color.kbCalloutSelection)
+                    .padding(4)
+            }
+        }
+    }
+}
+
 // MARK: - Key preview card
 
 /// The key preview of the iOS 26+ system keyboard: a rounded card in the
@@ -1340,6 +1578,8 @@ private struct KeyButton: View {
     var isPressed: Bool = false
     var cornerRadius: CGFloat = 8
     var labelScale: CGFloat = 1
+    /// The soft shade below light keys; the native cell grid draws none.
+    var showsUnderShade: Bool = true
 
     private func size(_ points: CGFloat) -> CGFloat { points * labelScale }
 
@@ -1360,10 +1600,12 @@ private struct KeyButton: View {
             // No hard drop shadow (native keys have none); light keys get the
             // native soft shade below them instead
             .background(alignment: .bottom) {
-                LinearGradient(colors: [Color.kbKeyUnderShade, .clear],
-                               startPoint: .top, endPoint: .bottom)
-                    .frame(height: 8)
-                    .offset(y: 8)
+                if showsUnderShade {
+                    LinearGradient(colors: [Color.kbKeyUnderShade, .clear],
+                                   startPoint: .top, endPoint: .bottom)
+                        .frame(height: 8)
+                        .offset(y: 8)
+                }
             }
             .allowsHitTesting(false)
     }

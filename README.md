@@ -41,8 +41,30 @@ Tests/GeneralKeyboardTests/   unit, characterization, migration and pixel-snapsh
 Reference/                    GeneralKeyboardReference.xcodeproj: a runnable app +
                               keyboard extension built only from the package
 scripts/                      artifact, fixture, emoji and benchmark scripts
-docs/                         ADDING_A_KEYBOARD.md; engine/ holds imported engine docs
+docs/                         ADDING_A_KEYBOARD.md, NATIVE_GRID.md (iPhone native grid,
+                              iOS workarounds), NATIVE_UI_AUDIT.md; engine/ holds
+                              imported engine docs
 ```
+
+## Getting the source
+
+This repository is private (`LekiTech/GeneralKeyboard-iOS`). The keyboards
+use it as a local Swift package found next to their own checkout, so clone
+the repositories side by side, under any parent directory:
+
+```
+<workspace>/
+  GeneralKeyboard-iOS/   git clone https://github.com/LekiTech/GeneralKeyboard-iOS.git
+  AvarKeyboard-iOS/      git clone https://github.com/LekiTech/AvarKeyboard-iOS.git
+  LezgiKeyboard-iOS/     git clone https://github.com/LekiTech/LezgiKeyboard-iOS.git
+```
+
+The Xcode projects reference the package as `../../GeneralKeyboard-iOS`
+(relative to `AvarKeyboard/AvarKeyboard.xcodeproj` and
+`LezgiKeyboard/LezgiKeyboard.xcodeproj`), and the keyboards' test packages
+as `../GeneralKeyboard-iOS`. Cloning needs read access to the private
+repository; building needs nothing else (no tokens, no package registry).
+Check out the `main` branches of all three together.
 
 ## Using it in a keyboard
 
@@ -76,6 +98,15 @@ pixel snapshots recorded from the released Avar keyboard, which must match
 exactly. To re-record, set `TEST_RUNNER_RECORD_SNAPSHOTS=1`; a recording
 run fails on purpose.
 
+## Known iOS Platform Workarounds
+
+| Workaround | Where | Value | Disable |
+|---|---|---|---|
+| Suggestion bar lifted inside the keyboard to offset a 17 pt panel padding that iOS 26/27 add above third-party keyboards after a switch from an Apple keyboard | `KeyboardGeometry.temporaryBarLift` (`Layout/KeyboardGeometry.swift`), native grid on iPhone portrait only | 8 pt: bar inset 9 → 1 pt above, gap 7 → 15 pt below; height and rows unchanged | `temporaryBarLift = 0` |
+
+What iOS controls, the measurements, and when to remove it:
+[docs/NATIVE_GRID.md](docs/NATIVE_GRID.md#known-ios-platform-workarounds).
+
 ## Reference keyboard
 
 `Reference/GeneralKeyboardReference.xcodeproj` builds `ReferenceApp`
@@ -92,8 +123,9 @@ xcodebuild build -project Reference/GeneralKeyboardReference.xcodeproj -scheme R
 
 ## Status
 
-Phase 2 of the General Keyboard migration: the package exists and is
-validated independently. Avar and Lezgi do not consume it yet (Phase 3 and
-later). Project history and next steps live in
+Avar and Lezgi are built on the package (local package dependency, see
+[Getting the source](#getting-the-source)). Lezgi uses the native iPhone
+grid ([docs/NATIVE_GRID.md](docs/NATIVE_GRID.md)); Avar keeps the weighted
+grid. Project history and next steps live in
 `GENERAL_KEYBOARD_PROGRESS.md` and `GENERAL_KEYBOARD_DESIGN.md` next to this
 repository.

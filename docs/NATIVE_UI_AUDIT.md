@@ -125,8 +125,11 @@ Approved by the owner after testing on device.
   icons; callout as a key-colored card with a gray rounded highlight. The
   settings panel uses the keyboard backdrop, key-colored groups, label
   colors and gray icon tiles; no accent color anywhere.
-- **Platform limits:** the system pads ~15 pt above a third-party keyboard
-  in iPhone portrait; on iPad the system shortcut bar sits above it, so GK
-  is ~37 pt taller than native there.
+- **Platform limits:** in iPhone portrait the system sometimes pads ~17 pt
+  above a third-party keyboard (after a switch from an Apple keyboard) and
+  always ends it 4 pt higher than Apple's keyboard; see
+  [NATIVE_GRID.md](NATIVE_GRID.md#known-ios-platform-workarounds). On iPad
+  the system shortcut bar sits above it, so GK is ~37 pt taller than native
+  there.
 - Snapshot references are not re-recorded yet; they are updated once
   against the final UI during release verification.

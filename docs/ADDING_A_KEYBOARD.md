@@ -32,7 +32,7 @@ One value of `KeyboardDefinition`, usually in its own file
 |---|---|---|
 | `id` | `String` | stable identity, e.g. the extension's bundle ID; every distinct definition needs its own |
 | `data` | `LanguageData` | App Group ID, the two artifact names (without `.sqlite`), a diagnostics subsystem fallback |
-| `layout` | `LayoutCapabilities` | one or more `LayoutStyleSpec` (letter, number and symbol rows, long-press callouts, metrics, settings title and subtitle), the default style, whether to show the selector, the UserDefaults key that stores the choice |
+| `layout` | `LayoutCapabilities` | one or more `LayoutStyleSpec` (letter, number and symbol rows, long-press callouts, metrics, settings title and subtitle, character keys after the space bar, quick-switch menu title and subtitle), the default style, whether to show the selector, the UserDefaults key that stores the choice, whether a long press on the settings key opens the style menu, and the iPhone portrait grid model (`.weighted`, or `.nativeCells` for Apple's measured grid, see [NATIVE_GRID.md](NATIVE_GRID.md)) |
 | `keys` | `KeyLabels` | space bar text and corner label, keyboard name, letters-key labels, return-key labels per `UIReturnKeyType` |
 | `text` | `TextConventions` | the visible palochka (or nil), case-neutral letters, word separators, the quote marks around an unknown word |
 | `normalization` | `NormalizationProfile` | script ranges, palochka and its lookalikes, Latin homoglyphs, digraph tails, whether ASCII letters are rejected; identified by `(id, version)` |
@@ -119,4 +119,3 @@ contribution batches when the app becomes active with
   normalization pipeline are not in this package yet.
 - Sentence punctuation (the sentence-ending marks and the closing brackets
   and quotes after them) is still an engine constant.
-- `quickSwitch` and `bottomRowAfterSpace` arrive with Lezgi.

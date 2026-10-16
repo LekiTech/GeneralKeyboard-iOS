@@ -149,6 +149,14 @@ public struct LayoutStyleSpec: Sendable {
     public var settingsTitle: String
     /// Explanatory subtitle (already localized).
     public var settingsSubtitle: String
+    /// Keys the letters page's bottom row carries right after the space
+    /// bar in this style (for example a letter that has no room in the
+    /// grid). Empty for most keyboards.
+    public var bottomRowAfterSpace: [KeyCap]
+    /// The style's row in the quick layout menu (long press on the gear
+    /// key); nil uses `settingsTitle` / `settingsSubtitle`.
+    public var quickSwitchTitle: String?
+    public var quickSwitchSubtitle: String?
 
     public init(
                 id: LayoutStyle,
@@ -158,7 +166,10 @@ public struct LayoutStyleSpec: Sendable {
                 callouts: [String: [String]],
                 metrics: KeyboardLayout.Metrics,
                 settingsTitle: String,
-                settingsSubtitle: String) {
+                settingsSubtitle: String,
+                bottomRowAfterSpace: [KeyCap] = [],
+                quickSwitchTitle: String? = nil,
+                quickSwitchSubtitle: String? = nil) {
         self.id = id
         self.letterRows = letterRows
         self.numberRows = numberRows
@@ -167,7 +178,27 @@ public struct LayoutStyleSpec: Sendable {
         self.metrics = metrics
         self.settingsTitle = settingsTitle
         self.settingsSubtitle = settingsSubtitle
+        self.bottomRowAfterSpace = bottomRowAfterSpace
+        self.quickSwitchTitle = quickSwitchTitle
+        self.quickSwitchSubtitle = quickSwitchSubtitle
     }
+}
+
+/// How a keyboard sizes and places its keys in iPhone portrait.
+public enum KeyboardGridModel: Sendable, Equatable {
+    /// Key widths from relative weights, rows inset 6 pt from the edges,
+    /// positions left fractional. The geometry shipped before the native
+    /// grid existed.
+    case weighted
+    /// The grid of Apple's iPhone portrait keyboard, measured on iOS 27
+    /// (keyboard-geometry/: every one of the native keyboard's 74 key edges
+    /// reproduced within 0.2 px). The content width is the keyboard width
+    /// less 3.5 pt per side; each row is split into cells (letter rows:
+    /// equal cells per row; bottom row: system keys 1/8, return 1/4, space
+    /// the rest); each key is its cell less 3 pt per side, and every edge is
+    /// rounded to the pixel grid on its own. The suggestion region is sized
+    /// so the keyboard's panel lines up with the native one.
+    case nativeCells
 }
 
 public struct LayoutCapabilities: Sendable {
@@ -180,19 +211,34 @@ public struct LayoutCapabilities: Sendable {
     /// UserDefaults key holding the chosen style's raw value. Part of the
     /// product's persisted contract — never rename.
     public var persistenceKey: String
+    /// A long press on the gear key opens a menu of the styles; sliding to
+    /// one and releasing switches to it. A tap still opens the settings
+    /// panel. Honored only when the selector is shown.
+    public var quickSwitchOnSettingsLongPress: Bool
+    /// How keys are sized and placed in iPhone portrait (see
+    /// `KeyboardGridModel`). Other size classes always use the weighted
+    /// layout.
+    public var gridModel: KeyboardGridModel
 
     public init(
                 styles: [LayoutStyleSpec],
                 defaultStyle: LayoutStyle,
                 showsStyleSelector: Bool,
-                persistenceKey: String) {
+                persistenceKey: String,
+                quickSwitchOnSettingsLongPress: Bool = false,
+                gridModel: KeyboardGridModel = .weighted) {
         self.styles = styles
         self.defaultStyle = defaultStyle
         self.showsStyleSelector = showsStyleSelector
         self.persistenceKey = persistenceKey
+        self.quickSwitchOnSettingsLongPress = quickSwitchOnSettingsLongPress
+        self.gridModel = gridModel
     }
 
     public var showsSelector: Bool { showsStyleSelector && styles.count > 1 }
+
+    /// Whether a long press on the gear key opens the quick layout menu.
+    public var showsQuickSwitch: Bool { quickSwitchOnSettingsLongPress && showsSelector }
 
     /// The persisted raw value if it names an offered style, else the
     /// default. A value is never rewritten until the user picks a style.
@@ -233,6 +279,12 @@ public struct LayoutCapabilities: Sendable {
             }
             for key in spec.callouts.keys where key != key.lowercased() {
                 errors.append("\(spec.id): callout key \(key) is not lowercase")
+            }
+            for cap in spec.bottomRowAfterSpace {
+                guard case .character = cap else {
+                    errors.append("\(spec.id): bottom row keys after space must be characters")
+                    continue
+                }
             }
         }
         return errors

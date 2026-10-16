@@ -779,6 +779,8 @@ final class KeyboardModel: ObservableObject {
             var row: [KeyCap] = [.numbers, .settings, .emoji]
             if needsGlobe { row.append(.globe) }
             row.append(.space)
+            // A style may carry character keys next to the space bar
+            row += KeyboardDefinition.current.layout.spec(for: layoutStyle).bottomRowAfterSpace
             row.append(.return)
             return row
         case .numbers, .symbols:
