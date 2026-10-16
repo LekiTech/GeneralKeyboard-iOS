@@ -131,5 +131,5 @@ Approved by the owner after testing on device.
   [NATIVE_GRID.md](NATIVE_GRID.md#known-ios-platform-workarounds). On iPad
   the system shortcut bar sits above it, so GK is ~37 pt taller than native
   there.
-- Snapshot references are not re-recorded yet; they are updated once
-  against the final UI during release verification.
+- Snapshot references were re-recorded once against the approved UI
+  (2026-10-15).

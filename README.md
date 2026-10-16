@@ -37,7 +37,7 @@ Sources/
   GeneralKeyboardReference/   reference definition + its string catalog
 Tests/GeneralKeyboardTests/   unit, characterization, migration and pixel-snapshot tests
   Fixtures/                   frozen production-v1 learned store, reference artifacts
-  Snapshots/                  reference PNGs (recorded from released Avar)
+  Snapshots/                  reference PNGs of the reference keyboard
 Reference/                    GeneralKeyboardReference.xcodeproj: a runnable app +
                               keyboard extension built only from the package
 scripts/                      artifact, fixture, emoji and benchmark scripts
@@ -94,8 +94,8 @@ xcodebuild test -scheme GeneralKeyboard-Package -destination 'platform=iOS Simul
 ```
 
 The suite installs `ReferenceDefinition` once per process. It includes 51
-pixel snapshots recorded from the released Avar keyboard, which must match
-exactly. To re-record, set `TEST_RUNNER_RECORD_SNAPSHOTS=1`; a recording
+pixel snapshots of the reference keyboard (Avar fixture data, weighted
+grid) as approved on 2026-10-15, which must match exactly. To re-record, set `TEST_RUNNER_RECORD_SNAPSHOTS=1`; a recording
 run fails on purpose.
 
 ## Known iOS Platform Workarounds
