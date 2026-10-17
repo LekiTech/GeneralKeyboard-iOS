@@ -156,6 +156,33 @@ change suggestions without review:
 Both sets are reported by every build. Removing them is a **separate,
 reviewed data change**, not a side effect of this phase.
 
+### 2a. The palochka: lookup keys and user-facing text (2026-10)
+
+One representation is stored, and one is shown:
+
+| | Code point | Where |
+|---|---|---|
+| Lookup key | ӏ U+04CF CYRILLIC SMALL LETTER PALOCHKA | the canonical form above: both artifacts (`words.word`, `bigrams.prev`/`word`), learned words and bigrams, every lookup, dedup and comparison |
+| User-facing text | Ӏ U+04C0 CYRILLIC LETTER PALOCHKA | key labels and what the keys and long-press options insert, every suggestion (dictionary, learned, next word, idle), the saved-words list, UI strings |
+
+Why two: Unicode case-folds U+04C0 to U+04CF (`CaseFolding.txt`: `04C0; C;
+04CF`), so a lowercase lookup key can only hold U+04CF; but the Core
+Specification (§7.4, Cyrillic) says the palochka "is generally caseless
+and should retain its form even in lowercased Cyrillic text", so the text
+users read and type carries U+04C0.
+
+How: the artifacts are unchanged. Keys differ from user-facing words only
+in the palochka, so the engine converts at the presentation and insertion
+boundaries with the definition's `TextConventions.visiblePalochka`
+(U+04CF → U+04C0): in the suggestion display form, the saved-words list,
+and every key insertion (after Shift / Caps Lock). Layouts store U+04C0;
+callout keys are compared with `TextConventions.visibleLowercased`, which
+lowercases without folding the palochka. Every storage boundary
+re-canonicalizes, so learned words written before the convention keep
+working. Text already in the document is never rewritten. A language
+without a palochka sets `visiblePalochka` to nil and nothing changes.
+Tests: `PalochkaConventionTests`.
+
 ## 3. Stable word identity
 
 **Decision: the normalized word string is the identity.** No numeric IDs.

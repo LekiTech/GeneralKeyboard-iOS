@@ -58,14 +58,14 @@ enum ReferenceLayout {
     // ↓↓↓  ADD OR REORDER KEYS HERE ONLY  ↓↓↓
     private static let threeRowRows: [[KeyCap]] = [
         ["й","ц","у","к","е","н","г","ш","щ","з","х","ъ"].map { .character($0) },  // 12 keys
-        ["ф","ӏ","в","а","п","р","о","л","д","ж","э"].map { .character($0) },      // 11 keys
+        ["ф","Ӏ","в","а","п","р","о","л","д","ж","э"].map { .character($0) },      // 11 keys
         [.shift]
             + ["я","ч","с","м","и","т","ь","б","ю"].map { KeyCap.character($0) }
             + [.backspace],
     ]
 
     private static let fourRowRows: [[KeyCap]] = [
-        ["гъ","хъ","къ","кӏ","тӏ","цӏ","чӏ","хӏ","гӏ","кь","хь"].map { .character($0) },  // 11 keys
+        ["гъ","хъ","къ","кӀ","тӀ","цӀ","чӀ","хӀ","гӀ","кь","хь"].map { .character($0) },  // 11 keys
         ["й","ц","у","к","е","н","г","ш","щ","з","х"].map { .character($0) },              // 11 keys
         ["ф","лъ","в","а","п","р","о","л","д","ж","э"].map { .character($0) },             // 11 keys
         [.shift]
@@ -116,19 +116,19 @@ enum ReferenceLayout {
     //
     // These maps reproduce the ava-3-rows / ava-4-rows long-press
     // specification natively: the shared block is the digraph sets, the
-    // accented vowels, and the symbol variants; the 3-row style adds ӏ→ы
-    // (it has a standalone ӏ key), and the 4-row style adds component access
-    // on its digraph keys because standalone ь, ъ and ӏ have no dedicated
+    // accented vowels, and the symbol variants; the 3-row style adds Ӏ→ы
+    // (it has a standalone Ӏ key), and the 4-row style adds component access
+    // on its digraph keys because standalone ь, ъ and Ӏ have no dedicated
     // keys there. The slash deliberately has no alternatives.
     private static let sharedCallouts: [String: [String]] = [
         // Digraphs on the base letters
-        "ц": ["цӏ"],
-        "к": ["кӏ", "къ", "кь"],
-        "г": ["гӏ", "гъ", "гь"],
-        "х": ["хӏ", "хъ", "хь"],
-        "л": ["лъ", "лӏ"],
-        "ч": ["чӏ"],
-        "т": ["тӏ"],
+        "ц": ["цӀ"],
+        "к": ["кӀ", "къ", "кь"],
+        "г": ["гӀ", "гъ", "гь"],
+        "х": ["хӀ", "хъ", "хь"],
+        "л": ["лъ", "лӀ"],
+        "ч": ["чӀ"],
+        "т": ["тӀ"],
         // Vowels: existing alternates first, stress accent appended
         "а": ["а\u{0301}"],
         "е": ["ё", "е\u{0301}"],
@@ -154,13 +154,13 @@ enum ReferenceLayout {
     ]
 
     private static let threeRowCallouts: [String: [String]] =
-        sharedCallouts.merging(["ӏ": ["ы"]]) { current, _ in current }
+        sharedCallouts.merging(["Ӏ": ["ы"]]) { current, _ in current }
 
     private static let fourRowCallouts: [String: [String]] =
         sharedCallouts.merging([
             "гь": ["ь", "ъ"],
             "гъ": ["ъ"],
-            "кӏ": ["ӏ"],
-            "лъ": ["лӏ", "ы"],
+            "кӀ": ["Ӏ"],
+            "лъ": ["лӀ", "ы"],
         ]) { current, _ in current }
 }

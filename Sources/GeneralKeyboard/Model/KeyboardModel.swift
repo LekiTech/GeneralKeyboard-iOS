@@ -276,11 +276,12 @@ final class KeyboardModel: ObservableObject {
     /// Shared display form for every suggestion type — learned, dictionary,
     /// and idle-bar fallback words all go through here.
     ///
-    /// The definition's presentation convention for the palochka (Avar:
-    /// everything the user SEES carries Ӏ U+04C0 while every stored row is
-    /// canonical ӏ U+04CF). One-way and safe: every storage boundary (learn,
-    /// lookup, delete, dedup) re-canonicalizes its input, so a round trip
-    /// never loses a word.
+    /// Candidates travel as lookup keys (canonical ӏ U+04CF, as stored in
+    /// the artifacts and the learned store) and become user-facing text only
+    /// here and at key insertion, with the definition's visible palochka
+    /// (Ӏ U+04C0). One-way and safe: every storage boundary (learn, lookup,
+    /// delete, dedup) re-canonicalizes its input, so a round trip never
+    /// loses a word.
     private static let text = KeyboardDefinition.current.text
 
     private static func visiblePalochka(_ word: String) -> String {
@@ -560,7 +561,9 @@ final class KeyboardModel: ObservableObject {
                proxy.documentContextBeforeInput?.hasSuffix(word + " ") == true {
                 proxy.deleteBackward()
             }
-            let text = isShifted ? KeyboardLayout.applyCase(s, capsLock: isCapsLock) : s
+            // Typed text carries the visible palochka whatever the key's data
+            // or the shift state produced (the layouts already store it).
+            let text = Self.visiblePalochka(isShifted ? KeyboardLayout.applyCase(s, capsLock: isCapsLock) : s)
             proxy.insertText(text)
             if s.count == 1, let scalar = s.unicodeScalars.first,
                Self.wordSeparators.contains(scalar) {

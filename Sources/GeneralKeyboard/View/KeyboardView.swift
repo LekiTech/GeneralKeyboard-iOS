@@ -1177,12 +1177,18 @@ private struct RowView: View {
             }
         }
 
-        // Long-press for character keys that have callout options
+        // Long-press for character keys that have callout options. Keys and
+        // callouts are compared lowercased, keeping the visible palochka
+        // (plain lowercased() would turn Ӏ into the lookup key ӏ).
+        let text = KeyboardDefinition.current.text
+        func lower(_ s: String) -> String {
+            text.visibleLowercased(s, canonicalPalochka: Normalization.palochka)
+        }
         if case .character(let s) = key.cap,
-           let extras = KeyboardLayout.callouts(style: model.layoutStyle)[s.lowercased()],
+           let extras = KeyboardLayout.callouts(style: model.layoutStyle)[lower(s)],
            !extras.isEmpty {
-            let base = s.lowercased()
-            let opts = [base] + extras.filter { $0.lowercased() != base }
+            let base = lower(s)
+            let opts = [base] + extras.filter { lower($0) != base }
             let frame = key.frame
             let work = DispatchWorkItem {
                 isLongPressed = true

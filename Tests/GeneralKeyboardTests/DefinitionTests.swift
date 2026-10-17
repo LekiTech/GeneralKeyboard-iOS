@@ -43,14 +43,14 @@ final class ReferenceDefinitionTests: GKTestCase {
 
     func testOneStyleKeyboards() {
         let four = ReferenceDefinition.fourRowOnly.layout
-        XCTAssertEqual(four.validationErrors(), [])
+        XCTAssertEqual(ReferenceDefinition.fourRowOnly.validationErrors(), [])
         XCTAssertFalse(four.showsSelector, "one style: no selector even when requested")
         XCTAssertEqual(four.resolve("threeRow"), .fourRow, "unsupported persisted value falls back")
         XCTAssertEqual(four.resolve(nil), .fourRow)
         XCTAssertEqual(four.spec(for: .threeRow).id, .fourRow)
 
         let three = ReferenceDefinition.threeRowOnly.layout
-        XCTAssertEqual(three.validationErrors(), [])
+        XCTAssertEqual(ReferenceDefinition.threeRowOnly.validationErrors(), [])
         XCTAssertFalse(three.showsSelector)
         XCTAssertEqual(three.resolve("fourRow"), .threeRow)
 

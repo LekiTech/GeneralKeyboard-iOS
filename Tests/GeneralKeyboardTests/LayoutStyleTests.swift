@@ -28,26 +28,27 @@ final class LayoutStyleTests: GKTestCase {
         let rows = KeyboardLayout.letterRows(style: .threeRow)
         XCTAssertEqual(rows.count, 3)
         XCTAssertEqual(chars(rows[0]), ["й","ц","у","к","е","н","г","ш","щ","з","х","ъ"])
-        XCTAssertEqual(chars(rows[1]), ["ф","ӏ","в","а","п","р","о","л","д","ж","э"])
+        XCTAssertEqual(chars(rows[1]), ["ф","Ӏ","в","а","п","р","о","л","д","ж","э"])
         XCTAssertEqual(chars(rows[2]), ["я","ч","с","м","и","т","ь","б","ю"])
         XCTAssertEqual(rows[2].first, .shift)
         XCTAssertEqual(rows[2].last, .backspace)
-        // The standalone palochka key is the lowercase form ӏ (U+04CF).
-        XCTAssertEqual(chars(rows[1])[1].unicodeScalars.first?.value, 0x4CF)
+        // The standalone palochka key is the visible palochka Ӏ (U+04C0).
+        XCTAssertEqual(chars(rows[1])[1].unicodeScalars.first?.value, 0x4C0)
     }
 
     func testFourRowLayoutMatchesTheSpecificationExactly() {
         let rows = KeyboardLayout.letterRows(style: .fourRow)
         XCTAssertEqual(rows.count, 4)
-        XCTAssertEqual(chars(rows[0]), ["гъ","хъ","къ","кӏ","тӏ","цӏ","чӏ","хӏ","гӏ","кь","хь"])
+        XCTAssertEqual(chars(rows[0]), ["гъ","хъ","къ","кӀ","тӀ","цӀ","чӀ","хӀ","гӀ","кь","хь"])
         XCTAssertEqual(chars(rows[1]), ["й","ц","у","к","е","н","г","ш","щ","з","х"])
         XCTAssertEqual(chars(rows[2]), ["ф","лъ","в","а","п","р","о","л","д","ж","э"])
         XCTAssertEqual(chars(rows[3]), ["я","ч","с","м","и","т","гь","б","ю"])
         XCTAssertEqual(rows[3].first, .shift)
         XCTAssertEqual(rows[3].last, .backspace)
-        // Digraph palochkas are the lowercase form ӏ (U+04CF), per spec.
-        for key in chars(rows[0]) where key.contains("ӏ") == false && key.contains("Ӏ") {
-            XCTFail("digraph \(key) must use lowercase ӏ per the layout spec")
+        // Digraph palochkas are the visible palochka Ӏ (U+04C0), never the
+        // lookup key ӏ (U+04CF).
+        for key in chars(rows[0]) where key.contains("\u{04CF}") {
+            XCTFail("digraph \(key) must use the visible palochka Ӏ U+04C0")
         }
     }
 
@@ -55,7 +56,7 @@ final class LayoutStyleTests: GKTestCase {
 
     func testShiftLayersMatchTheSpecification() {
         // The spec's SHIFT grids capitalize only the first letter of each
-        // key: гь → Гь, кӏ → Кӏ, лъ → Лъ — applyCase(capsLock: false) is
+        // key: гь → Гь, кӀ → КӀ, лъ → Лъ — applyCase(capsLock: false) is
         // the single function that produces both the label and the
         // inserted text, so asserting it covers both.
         func shifted(_ row: [KeyCap]) -> [String] {
@@ -67,7 +68,7 @@ final class LayoutStyleTests: GKTestCase {
         XCTAssertEqual(shifted(three[2]), ["Я","Ч","С","М","И","Т","Ь","Б","Ю"])
 
         let four = KeyboardLayout.letterRows(style: .fourRow)
-        XCTAssertEqual(shifted(four[0]), ["Гъ","Хъ","Къ","Кӏ","Тӏ","Цӏ","Чӏ","Хӏ","Гӏ","Кь","Хь"])
+        XCTAssertEqual(shifted(four[0]), ["Гъ","Хъ","Къ","КӀ","ТӀ","ЦӀ","ЧӀ","ХӀ","ГӀ","Кь","Хь"])
         XCTAssertEqual(shifted(four[2]), ["Ф","Лъ","В","А","П","Р","О","Л","Д","Ж","Э"])
         XCTAssertEqual(shifted(four[3]), ["Я","Ч","С","М","И","Т","Гь","Б","Ю"])
     }
@@ -145,13 +146,13 @@ final class LayoutStyleTests: GKTestCase {
     // MARK: - Long-press maps (exact, per style)
 
     private let expectedShared: [String: [String]] = [
-        "ц": ["цӏ"],
-        "к": ["кӏ", "къ", "кь"],
-        "г": ["гӏ", "гъ", "гь"],
-        "х": ["хӏ", "хъ", "хь"],
-        "л": ["лъ", "лӏ"],
-        "ч": ["чӏ"],
-        "т": ["тӏ"],
+        "ц": ["цӀ"],
+        "к": ["кӀ", "къ", "кь"],
+        "г": ["гӀ", "гъ", "гь"],
+        "х": ["хӀ", "хъ", "хь"],
+        "л": ["лъ", "лӀ"],
+        "ч": ["чӀ"],
+        "т": ["тӀ"],
         "а": ["а\u{0301}"],
         "е": ["ё", "е\u{0301}"],
         "и": ["ы", "и\u{0301}"],
@@ -176,7 +177,7 @@ final class LayoutStyleTests: GKTestCase {
 
     func testThreeRowCalloutsMatchTheSpecification() {
         XCTAssertEqual(KeyboardLayout.callouts(style: .threeRow),
-                       expectedShared.merging(["ӏ": ["ы"]]) { c, _ in c })
+                       expectedShared.merging(["Ӏ": ["ы"]]) { c, _ in c })
     }
 
     func testFourRowCalloutsMatchTheSpecification() {
@@ -184,8 +185,8 @@ final class LayoutStyleTests: GKTestCase {
                        expectedShared.merging([
                            "гь": ["ь", "ъ"],
                            "гъ": ["ъ"],
-                           "кӏ": ["ӏ"],
-                           "лъ": ["лӏ", "ы"],
+                           "кӀ": ["Ӏ"],
+                           "лъ": ["лӀ", "ы"],
                        ]) { c, _ in c })
         // The slash deliberately has no alternatives, in either style.
         for style in LayoutStyle.allCases {
@@ -194,17 +195,17 @@ final class LayoutStyleTests: GKTestCase {
     }
 
     func testUppercaseCalloutVariantsDeriveMechanically() {
-        // The spec's uppercase rows (А: А́, Лъ: Лӏ Ы, Гь: Ь Ъ) come from
+        // The spec's uppercase rows (А: А́, Лъ: ЛӀ Ы, Гь: Ь Ъ) come from
         // the same lowercase entries: the bubble and the insertion both
         // run the selected option through applyCase.
         func shifted(_ options: [String]) -> [String] {
             options.map { KeyboardLayout.applyCase($0, capsLock: false) }
         }
         let four = KeyboardLayout.callouts(style: .fourRow)
-        XCTAssertEqual(shifted(four["лъ"]!), ["Лӏ", "Ы"])
+        XCTAssertEqual(shifted(four["лъ"]!), ["ЛӀ", "Ы"])
         XCTAssertEqual(shifted(four["гь"]!), ["Ь", "Ъ"])
         XCTAssertEqual(shifted(four["а"]!), ["А\u{0301}"])
-        XCTAssertEqual(shifted(KeyboardLayout.callouts(style: .threeRow)["ӏ"]!), ["Ы"])
+        XCTAssertEqual(shifted(KeyboardLayout.callouts(style: .threeRow)["Ӏ"]!), ["Ы"])
     }
 
     // MARK: - Reachability
@@ -220,9 +221,9 @@ final class LayoutStyleTests: GKTestCase {
 
     func testEveryAvarCharacterIsTypeableInBothStyles() {
         let required: Set<String> = [
-            "ъ", "ь", "ӏ", "ы", "ё", "ф", "щ",
-            "гъ", "хъ", "къ", "кӏ", "тӏ", "цӏ", "чӏ", "хӏ", "гӏ", "кь", "хь",
-            "гь", "лъ", "лӏ",
+            "ъ", "ь", "Ӏ", "ы", "ё", "ф", "щ",
+            "гъ", "хъ", "къ", "кӀ", "тӀ", "цӀ", "чӀ", "хӀ", "гӀ", "кь", "хь",
+            "гь", "лъ", "лӀ",
         ]
         for style in LayoutStyle.allCases {
             let set = typeable(style: style)
@@ -264,6 +265,7 @@ final class LayoutStyleTests: GKTestCase {
         // Normalization and the learned store derive digraph tails from
         // the union map — asserting the derived set proves the layout
         // rework cannot have moved the engine.
+        // Tails are lookup-key characters: the canonical palochka ӏ U+04CF.
         XCTAssertEqual(Normalization.digraphTails, Set("ӏъь"))
         for (key, alternates) in KeyboardLayout.callouts(style: .fourRow) {
             XCTAssertEqual(KeyboardLayout.callouts[key], alternates,
@@ -274,7 +276,7 @@ final class LayoutStyleTests: GKTestCase {
     // MARK: - Key names (exact, per the spec's table)
 
     func testKeyNamesMatchTheSpecification() {
-        XCTAssertEqual(KeyboardLayout.label(for: .space, shifted: false), "Гьоркьобакӏ")
+        XCTAssertEqual(KeyboardLayout.label(for: .space, shifted: false), "ГьоркьобакӀ")
         XCTAssertEqual(KeyboardLayout.label(for: .return, shifted: false), "",
                        "empty label — the view draws the ⏎ symbol")
         XCTAssertEqual(KeyboardLayout.label(for: .letters, shifted: false), "аиу")
@@ -283,8 +285,8 @@ final class LayoutStyleTests: GKTestCase {
         XCTAssertEqual(KeyboardLayout.returnLabel(for: .default), "",
                        "plain return shows the ⏎ symbol, not a word")
         XCTAssertEqual(KeyboardLayout.returnLabel(for: .go), "Рагьизе")
-        XCTAssertEqual(KeyboardLayout.returnLabel(for: .send), "Битӏизе")
-        XCTAssertEqual(KeyboardLayout.returnLabel(for: .done), "Лъугӏана")
+        XCTAssertEqual(KeyboardLayout.returnLabel(for: .send), "БитӀизе")
+        XCTAssertEqual(KeyboardLayout.returnLabel(for: .done), "ЛъугӀана")
         XCTAssertEqual(KeyboardLayout.returnLabel(for: .next), "Хадусеб")
         XCTAssertEqual(KeyboardLayout.returnLabel(for: .continue), "Цебехун")
         XCTAssertEqual(KeyboardLayout.returnLabel(for: .join), "Цолъизе")

@@ -71,7 +71,11 @@ public struct KeyboardDefinition: Sendable {
     /// by the product's definition tests; never enforced at runtime, so a
     /// definition mistake can never take a running keyboard down.
     public func validationErrors() -> [String] {
-        var errors = layout.validationErrors()
+        // Callout keys are lowercase text; the visible palochka stays as it is
+        let lowercase = { [text, normalization] (s: String) in
+            text.visibleLowercased(s, canonicalPalochka: normalization.palochka)
+        }
+        var errors = layout.validationErrors(lowercase: lowercase)
         for category in EmojiData.categories where emojiCategoryTitles[category.id] == nil {
             errors.append("no emoji title for category \(category.id)")
         }
@@ -263,7 +267,9 @@ public struct LayoutCapabilities: Sendable {
         }
     }
 
-    public func validationErrors() -> [String] {
+    /// `lowercase` is how callout keys are compared (the definition passes
+    /// its palochka-preserving lowercasing).
+    public func validationErrors(lowercase: (String) -> String = { $0.lowercased() }) -> [String] {
         var errors: [String] = []
         if styles.isEmpty { errors.append("no layout styles") }
         if Set(styles.map(\.id)).count != styles.count { errors.append("duplicate style ids") }
@@ -277,7 +283,7 @@ public struct LayoutCapabilities: Sendable {
             if spec.letterRows.count != spec.numberRows.count {
                 errors.append("\(spec.id): letter and number pages differ in row count")
             }
-            for key in spec.callouts.keys where key != key.lowercased() {
+            for key in spec.callouts.keys where key != lowercase(key) {
                 errors.append("\(spec.id): callout key \(key) is not lowercase")
             }
             for cap in spec.bottomRowAfterSpace {
@@ -329,8 +335,12 @@ public struct KeyLabels: Sendable {
 }
 
 public struct TextConventions: Sendable {
-    /// The form the canonical palochka is SHOWN in (suggestions, saved
-    /// words). Stored rows keep the canonical form. nil shows it as stored.
+    /// The palochka of user-facing text: what the keys insert and what
+    /// suggestions, saved words and dictionary forms show (Dagestanian
+    /// Cyrillic: Ӏ U+04C0, which Unicode keeps caseless in running text).
+    /// Lookup keys keep the normalization profile's canonical palochka
+    /// (ӏ U+04CF, its case folding); every storage boundary folds back to
+    /// it. nil leaves the canonical form visible.
     public var visiblePalochka: Character?
     /// Letters that never vote in the ALL-CAPS test of a typed prefix.
     public var caseNeutral: Set<Character>
@@ -361,6 +371,13 @@ public struct TextConventions: Sendable {
     public func visibleForm(_ word: String, canonicalPalochka: Character?) -> String {
         guard let visible = visiblePalochka, let canonical = canonicalPalochka else { return word }
         return word.replacingOccurrences(of: String(canonical), with: String(visible))
+    }
+
+    /// Lowercases user-facing text without folding the visible palochka:
+    /// `lowercased()` maps Ӏ U+04C0 to its formal lowercase ӏ U+04CF, which
+    /// is a lookup key, not text.
+    public func visibleLowercased(_ text: String, canonicalPalochka: Character?) -> String {
+        visibleForm(text.lowercased(), canonicalPalochka: canonicalPalochka)
     }
 }
 
